@@ -30,7 +30,6 @@ class BiLSTMWithMeta(nn.Module):
         super().__init__()
         self.use_bert = use_bert
         if use_bert and bert_model_name:
-            from transformers import AutoModel
             self.bert = AutoModel.from_pretrained(bert_model_name)
             input_dim = self.bert.config.hidden_size
         else:
@@ -175,32 +174,10 @@ def normalize_ar(text):
 # -----------------------------------------
 @st.cache_resource
 def load_base_models():
-    """
-    Load the 3 base models for stacking.
-
-    Stage 1 architecture (per paper):
-      Each base model = Transformer + 2-layer BiLSTM + attention pooling
-                        + linguistic features → classification head (6 classes)
-
-    Stage 2 meta-learner input (per paper):
-      18-dim vector = concat of 6 softmax probs from each of the 3 base models.
-      x = [p_AraBERT | p_CamelBERT-MSA | p_BiLSTM]  ∈ R^18
-
-    The BiLSTM base model uses CamelBERT-MSA as its transformer backbone.
-    We load:
-      • best_bilstm_camelbert.joblib  — BiLSTMWrapper (predict_proba returns 6 probs)
-      • meta_encoders.joblib          — sklearn scaler/encoder fitted on the CLS
-                                        embeddings; transforms raw CLS → input for
-                                        the BiLSTMWrapper
-      • CamelBERT-MSA base model      — extracts CLS token representations
-    """
     models = {}
 
-    # --- AraBERT v2 (fine-tuned, has classification head) ---
-    # AraBERT uses SentencePiece; use_fast=False avoids the fast-tokenizer
-    # conversion error when the sentencepiece wheel is not pre-installed.
+    # --- AraBERT v2 (fine-tuned classifier) ---
     try:
-        # Try flat repo layout first, then subfolder layout as fallback.
         try:
             models['arabert_tokenizer'] = AutoTokenizer.from_pretrained(
                 "SarahAlhalees/AraBERTv2_RefinedBayyin",
@@ -225,8 +202,7 @@ def load_base_models():
         models['arabert_tokenizer'] = None
         models['arabert_model'] = None
 
-    # --- CamelBERT-MSA (fine-tuned, has classification head) ---
-    # CamelBERT also uses WordPiece / SentencePiece; use_fast=False is safe here.
+    # --- CamelBERT-MSA (fine-tuned classifier) ---
     try:
         models['camelbert_tokenizer'] = AutoTokenizer.from_pretrained(
             "SarahAlhalees/CamelBERTmsa_RefinedBayyin",
@@ -241,7 +217,7 @@ def load_base_models():
         models['camelbert_tokenizer'] = None
         models['camelbert_model'] = None
 
-    # --- BiLSTM + CamelBERT-MSA backbone ---
+    # --- BiLSTM + CamelBERT-MSA backbone (end-to-end, BERT is inside the model) ---
     try:
         bilstm_path = hf_hub_download(
             repo_id="SarahAlhalees/BiLSTM_RefinedBayyin",
@@ -252,53 +228,47 @@ def load_base_models():
             filename="meta_encoders.joblib"
         )
 
-        # best_bilstm_camelbert.joblib keys:
-        # 'model_state', 'val_acc', 'epoch', 'cat_card', 'text_col', 'config'
         bilstm_raw  = joblib.load(bilstm_path)
-        config      = bilstm_raw['config']       # model hyperparams
-        cat_card    = bilstm_raw['cat_card']     # categorical cardinalities dict
-        model_state = bilstm_raw['model_state']  # nn.Module state_dict
+        config      = bilstm_raw['config']
+        cat_card    = bilstm_raw['cat_card']
+        model_state = bilstm_raw['model_state']
 
-        # Infer num_numeric from state_dict if not in config:
-        # meta_proj linear weight shape = (meta_proj_dim, num_cat_emb + num_numeric)
+        # --- Infer dims from state_dict ---
         total_cat_emb = sum(
             min(50, max(4, int(card**0.5)))
             for card in (cat_card.values() if isinstance(cat_card, dict) else [])
         )
-        # Try to read meta_proj input dim from state_dict
+
         meta_proj_weight = model_state.get('meta_proj.0.weight')
         if meta_proj_weight is not None:
             meta_proj_in = meta_proj_weight.shape[1]
             num_numeric  = meta_proj_in - total_cat_emb
         else:
-            num_numeric  = config.get('num_numeric', 0) if isinstance(config, dict) else 0
+            num_numeric = config.get('num_numeric', 0) if isinstance(config, dict) else 0
 
-        # Read remaining dims from config or state_dict
         if isinstance(config, dict):
-            input_dim     = config.get('input_dim',     768)
             lstm_hidden   = config.get('lstm_hidden',   256)
             meta_proj_dim = config.get('meta_proj_dim', 128)
             num_classes   = config.get('num_classes',   6)
             dropout       = config.get('dropout',       0.3)
+            bert_model_name = config.get('bert_model_name', 'CAMeL-Lab/bert-base-arabic-camelbert-msa')
         else:
-            # config might be a namespace or non-dict object
-            input_dim     = getattr(config, 'input_dim',     768)
             lstm_hidden   = getattr(config, 'lstm_hidden',   256)
             meta_proj_dim = getattr(config, 'meta_proj_dim', 128)
             num_classes   = getattr(config, 'num_classes',   6)
             dropout       = getattr(config, 'dropout',       0.3)
+            bert_model_name = getattr(config, 'bert_model_name', 'CAMeL-Lab/bert-base-arabic-camelbert-msa')
 
-        # Infer lstm_hidden from state_dict if needed
+        # Override lstm_hidden from state_dict if available
         lstm_weight = model_state.get('lstm.weight_hh_l0')
         if lstm_weight is not None:
-            lstm_hidden = lstm_weight.shape[1]  # hidden_size
+            lstm_hidden = lstm_weight.shape[1]
 
-        # Infer input_dim from state_dict
-        lstm_input_weight = model_state.get('lstm.weight_ih_l0')
-        if lstm_input_weight is not None:
-            input_dim = lstm_input_weight.shape[1]
+        # input_dim is determined by BERT hidden size when use_bert=True,
+        # so we pass a placeholder — it gets overridden inside __init__
+        input_dim = 768
 
-        # Reconstruct BiLSTMWithMeta from saved weights
+        # Reconstruct BiLSTMWithMeta with use_bert=True (BERT lives inside the model)
         bilstm_nn = BiLSTMWithMeta(
             input_dim                 = input_dim,
             categorical_cardinalities = cat_card if isinstance(cat_card, dict) else {},
@@ -307,6 +277,8 @@ def load_base_models():
             meta_proj_dim             = meta_proj_dim,
             num_classes               = num_classes,
             dropout                   = dropout,
+            use_bert                  = True,
+            bert_model_name           = bert_model_name,
         )
         bilstm_nn.load_state_dict(model_state, strict=False)
         bilstm_nn.eval()
@@ -319,27 +291,24 @@ def load_base_models():
         )
         models['bilstm_raw'] = bilstm_raw
 
-        # meta_encoders.joblib keys: 'meta_scaler', 'label_encoders'
+        # CamelBERT-MSA tokenizer (for tokenizing input to the BiLSTM model)
+        models['bilstm_tokenizer'] = AutoTokenizer.from_pretrained(
+            bert_model_name,
+            use_fast=False
+        )
+
+        # Load meta_encoders (scaler is for numeric metadata features, not used in inference)
         meta_raw = joblib.load(meta_enc_path)
         models['meta_encoders']      = meta_raw.get('meta_scaler')
         models['label_encoders']     = meta_raw.get('label_encoders')
         models['meta_encoders_dict'] = meta_raw
 
-        # CamelBERT-MSA base (no classification head) — supplies CLS embeddings
-        # that meta_encoders projects before passing to BiLSTMWrapper.
-        models['bilstm_tokenizer'] = AutoTokenizer.from_pretrained(
-            "CAMeL-Lab/bert-base-arabic-camelbert-msa",
-            use_fast=False
-        )
-        models['bilstm_bert'] = AutoModel.from_pretrained(
-            "CAMeL-Lab/bert-base-arabic-camelbert-msa"
-        )
-        models['bilstm_bert'].eval()
+        # NOTE: No external bilstm_bert needed — BERT is inside BiLSTMWithMeta
+
     except Exception as e:
         st.warning(f"خطأ في تحميل BiLSTM: {str(e)}")
         models['bilstm_model']        = None
         models['bilstm_tokenizer']    = None
-        models['bilstm_bert']         = None
         models['meta_encoders']       = None
         models['meta_encoders_dict']  = None
 
@@ -348,7 +317,7 @@ def load_base_models():
 
 @st.cache_resource
 def load_meta_learner():
-    """Load stacking meta-learner (SVM / LR / MLP trained on Stage-2 features)"""
+    """Load stacking meta-learner (SVM trained on Stage-2 features)"""
     try:
         meta_path = hf_hub_download(
             repo_id="SarahAlhalees/ensemble",
@@ -373,7 +342,7 @@ def load_simplification_model():
         return None, None
 
 
-# Load all models at startup — catch any crash and show it in the UI
+# Load all models at startup
 _load_error = None
 try:
     base_models = load_base_models()
@@ -402,7 +371,7 @@ if _load_error:
     st.code(_load_error, language="python")
     st.stop()
 
-# --- Debug expander: shows loaded model status ---
+# --- Debug expander ---
 with st.expander("🔧 تشخيص تحميل النماذج", expanded=False):
     st.write(f"**arabert loaded:** `{base_models.get('arabert_model') is not None}`")
     st.write(f"**camelbert loaded:** `{base_models.get('camelbert_model') is not None}`")
@@ -410,11 +379,22 @@ with st.expander("🔧 تشخيص تحميل النماذج", expanded=False):
     st.write(f"**meta_scaler type:** `{type(base_models.get('meta_encoders'))}`")
     st.write(f"**label_encoders:** `{type(base_models.get('label_encoders'))}`")
     st.write(f"**meta_learner loaded:** `{meta_learner is not None}`")
+
+    bilstm_wrapper = base_models.get('bilstm_model')
+    if bilstm_wrapper:
+        st.write(f"**num_numeric:** `{bilstm_wrapper.num_numeric}`")
+        st.write(f"**cat_cardinalities count:** `{len(bilstm_wrapper.cat_cardinalities)}`")
+        st.write(f"**use_bert:** `{bilstm_wrapper.model.use_bert}`")
+
     raw = base_models.get('bilstm_raw') or {}
     if raw:
         cfg = raw.get('config', {})
         st.write(f"**config:** `{cfg}`")
         st.write(f"**cat_card keys:** `{list(raw.get('cat_card', {}).keys())}`")
+
+    scaler = base_models.get('meta_encoders')
+    if scaler and hasattr(scaler, 'n_features_in_'):
+        st.write(f"**meta_scaler.n_features_in_:** `{scaler.n_features_in_}`")
 
 # -----------------------------------------
 # Feature Extraction
@@ -433,28 +413,28 @@ def get_softmax_probs_from_classifier(text, tokenizer, clf_model, max_length=256
     )
     with torch.no_grad():
         logits = clf_model(**inputs).logits
-    probs = torch.softmax(logits, dim=-1).numpy()   # (1, 6)
+    probs = torch.softmax(logits, dim=-1).numpy()
     return probs
 
 
 def get_bilstm_probs(text, models, max_length=256):
     """
-    Get 6-class softmax probabilities from the BiLSTM+CamelBERT-MSA base model.
+    Get 6-class softmax probabilities from the BiLSTM+CamelBERT-MSA model.
 
-    Pipeline:
-      1. Tokenise with CamelBERT-MSA tokenizer.
-      2. Extract CLS token embedding from the CamelBERT-MSA base model.
-      3. Apply meta_scaler (StandardScaler) to normalise the CLS embedding.
-      4. Call BiLSTMWrapper.predict_proba() → (1, 6) softmax probs.
+    The model has BERT embedded inside it (use_bert=True), so we:
+      1. Tokenize with the CamelBERT-MSA tokenizer → token IDs
+      2. Pass token IDs directly into bilstm_nn.forward()
+      3. Use zeroed numeric/categorical metadata (not available at inference time)
+
+    The meta_scaler (4 features) is for numeric metadata columns used during
+    training only — it is NOT applied to BERT output here.
 
     Shape returned: (1, 6)
     """
-    tokenizer   = models['bilstm_tokenizer']
-    bert_model  = models['bilstm_bert']
-    bilstm      = models['bilstm_model']       # BiLSTMWrapper
-    meta_scaler = models['meta_encoders']      # StandardScaler or None
+    tokenizer = models['bilstm_tokenizer']
+    bilstm    = models['bilstm_model']      # BiLSTMWrapper
 
-    # Step 1 & 2 — extract CLS token embedding
+    # Tokenize → token IDs
     inputs = tokenizer(
         text,
         return_tensors="pt",
@@ -462,16 +442,28 @@ def get_bilstm_probs(text, models, max_length=256):
         max_length=max_length,
         padding=True
     )
+
+    input_ids      = inputs['input_ids']       # (1, seq_len)
+    attention_mask = inputs['attention_mask']  # (1, seq_len)
+
+    # Call the model directly (bypassing BiLSTMWrapper.predict_proba)
+    # because we need to pass attention_mask for the internal BERT
+    bilstm.model.eval()
+    bilstm.model.to(bilstm.device)
+
     with torch.no_grad():
-        outputs = bert_model(**inputs)
-    cls_emb = outputs.last_hidden_state[:, 0, :].numpy()   # (1, hidden_size)
+        batch_size  = input_ids.shape[0]
+        numeric     = torch.zeros(batch_size, bilstm.num_numeric, dtype=torch.float32).to(bilstm.device)
+        categorical = torch.zeros(batch_size, len(bilstm.cat_cardinalities), dtype=torch.long).to(bilstm.device)
 
-    # Step 3 — z-score normalise with the saved StandardScaler
-    if meta_scaler is not None and hasattr(meta_scaler, 'transform'):
-        cls_emb = meta_scaler.transform(cls_emb)            # (1, hidden_size)
+        logits = bilstm.model(
+            input_ids.to(bilstm.device),
+            numeric,
+            categorical,
+            attention_mask=attention_mask.to(bilstm.device)
+        )
+        probs = torch.softmax(logits, dim=1).cpu().numpy()   # (1, 6)
 
-    # Step 4 — BiLSTM softmax probs
-    probs = bilstm.predict_proba(cls_emb)                   # (1, 6)
     return probs
 
 
@@ -479,12 +471,8 @@ def get_model_probabilities(text, models):
     """
     Build the 18-dim Stage-2 feature vector for the SVM meta-learner.
 
-    Per paper:
-        x = [p_AraBERT | p_CamelBERT-MSA | p_BiLSTM]  ∈ R^18
-        (6 softmax probs per base model × 3 models)
-
-    No CLS embeddings are included here — that is specific to the *hybrid*
-    BiLSTM Stage 1 pipeline, not the SVM meta-learner's input.
+    x = [p_AraBERT | p_CamelBERT-MSA | p_BiLSTM]  ∈ R^18
+    (6 softmax probs per base model × 3 models)
     """
     feature_parts = []
 
@@ -493,7 +481,7 @@ def get_model_probabilities(text, models):
         try:
             probs = get_softmax_probs_from_classifier(
                 text, models['arabert_tokenizer'], models['arabert_model']
-            )   # (1, 6)
+            )
         except Exception as e:
             st.warning(f"AraBERT inference error: {e}")
             probs = np.zeros((1, 6))
@@ -506,7 +494,7 @@ def get_model_probabilities(text, models):
         try:
             probs = get_softmax_probs_from_classifier(
                 text, models['camelbert_tokenizer'], models['camelbert_model']
-            )   # (1, 6)
+            )
         except Exception as e:
             st.warning(f"CamelBERT inference error: {e}")
             probs = np.zeros((1, 6))
@@ -514,11 +502,10 @@ def get_model_probabilities(text, models):
         probs = np.zeros((1, 6))
     feature_parts.append(probs)
 
-    # ---- 3. BiLSTM + CamelBERT-MSA backbone (6 probs) ----
-    if (models.get('bilstm_model') and models.get('bilstm_tokenizer')
-            and models.get('bilstm_bert')):
+    # ---- 3. BiLSTM + internal CamelBERT-MSA backbone (6 probs) ----
+    if models.get('bilstm_model') and models.get('bilstm_tokenizer'):
         try:
-            probs = get_bilstm_probs(text, models)   # (1, 6)
+            probs = get_bilstm_probs(text, models)
         except Exception as e:
             st.warning(f"BiLSTM inference error: {e}")
             probs = np.zeros((1, 6))
@@ -563,7 +550,6 @@ st.markdown("---")
 
 text = st.text_area(
     label="أدخل النص العربي",
-    label_visibility="collapsed",
     height=200,
     placeholder="اكتب أو الصق النص هنا...",
     key="arabic_input"
@@ -591,22 +577,19 @@ if st.button("📊 بَيِّنْ", use_container_width=True, type="primary"):
         with st.spinner("جاري التحليل..."):
             cleaned = normalize_ar(text)
 
-            # Build Stage-2 feature vector (softmax probs + CLS embeddings)
-            features = get_model_probabilities(cleaned, base_models)
-
-            # Predict with meta-learner
+            features   = get_model_probabilities(cleaned, base_models)
             prediction = meta_learner.predict(features)[0]
 
             try:
-                probs = meta_learner.predict_proba(features)[0]
+                probs      = meta_learner.predict_proba(features)[0]
                 confidence = probs[prediction - 1] if prediction <= len(probs) else np.max(probs)
             except Exception:
                 confidence = 1.0
 
             st.session_state.classification_done = True
-            st.session_state.readability_level = prediction
-            st.session_state.confidence = confidence
-            st.session_state.original_text = text
+            st.session_state.readability_level   = prediction
+            st.session_state.confidence          = confidence
+            st.session_state.original_text       = text
 
 # -----------------------------------------
 # Display Results
@@ -617,7 +600,7 @@ if st.session_state.classification_done:
 
     level = st.session_state.readability_level
     level_colors = {1: "🟢", 2: "🟢", 3: "🟡", 4: "🟡", 5: "🔴", 6: "🔴"}
-    level_names = {
+    level_names  = {
         1: "سهل جداً",
         2: "سهل",
         3: "متوسط",
