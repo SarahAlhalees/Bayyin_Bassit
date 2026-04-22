@@ -528,7 +528,7 @@ def get_model_probabilities(text, models):
 # UI Layout
 # -----------------------------------------
 # Load images
-logo_b64 = get_image_base64("logo.png")
+logo_b64 = get_image_base64("logo2.png")
 bg_b64   = get_image_base64("jamal.jpg")
 
 st.markdown(f"""
