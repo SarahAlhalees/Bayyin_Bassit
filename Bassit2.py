@@ -20,6 +20,12 @@ import re
 import joblib
 from huggingface_hub import hf_hub_download
 
+import base64
+
+def get_image_base64(image_path):
+    with open(image_path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
 # -----------------------------------------
 # BiLSTM Model Class Definition (MUST BE BEFORE LOADING)
 # -----------------------------------------
@@ -521,14 +527,45 @@ def get_model_probabilities(text, models):
 # -----------------------------------------
 # UI Layout
 # -----------------------------------------
-st.markdown("""
+# Load images
+logo_b64 = get_image_base64("logo.png")
+bg_b64   = get_image_base64("jamal.png")
+
+st.markdown(f"""
     <style>
-    textarea {
+    /* ── Background ── */
+    .stApp {{
+        background-image: url("data:image/jpeg;base64,{bg_b64}");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+    }}
+
+    /* Optional dark overlay so text stays readable */
+    .stApp::before {{
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 0;
+    }}
+
+    /* Ensure content sits above overlay */
+    .block-container {{
+        position: relative;
+        z-index: 1;
+    }}
+
+    /* ── Text area RTL ── */
+    textarea {{
         direction: rtl;
         text-align: right;
         font-size: 16px;
-    }
-    .simplified-box {
+    }}
+
+    /* ── Simplified result box ── */
+    .simplified-box {{
         background-color: #1e3a2e;
         padding: 20px;
         border-radius: 10px;
@@ -537,13 +574,29 @@ st.markdown("""
         color: #ffffff;
         border-right: 4px solid #4ade80;
         margin-top: 20px;
-    }
+    }}
+
+    /* ── Logo container ── */
+    .logo-container {{
+        display: flex;
+        justify-content: center;
+        margin-bottom: 10px;
+    }}
+
+    .logo-container img {{
+        height: 90px;
+        object-fit: contain;
+    }}
     </style>
+
+    <!-- Logo -->
+    <div class="logo-container">
+        <img src="data:image/png;base64,{logo_b64}" alt="logo"/>
+    </div>
 """, unsafe_allow_html=True)
 
 st.markdown("""
-    <h1 style='text-align: center; direction: rtl;'>بَيِّنْ</h1>
-    <h3 style='text-align: center; direction: rtl;'>مصنف وتبسيط النصوص العربية</h3>
+    <h3 style='text-align: center; direction: rtl; color: #e2e8f0;'>مصنف وتبسيط النصوص العربية</h3>
 """, unsafe_allow_html=True)
 
 st.markdown("---")
