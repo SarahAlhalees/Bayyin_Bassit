@@ -529,13 +529,13 @@ def get_model_probabilities(text, models):
 # -----------------------------------------
 # Load images
 logo_b64 = get_image_base64("logo.png")
-bg_b64   = get_image_base64("jamal.png")
+bg_b64   = get_image_base64("jamal.jpg")
 
 st.markdown(f"""
     <style>
     /* ── Background ── */
     .stApp {{
-        background-image: url("data:image/jpeg;base64,{bg_b64}");
+        background-image: url("data:image/jpg;base64,{bg_b64}");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
