@@ -3,6 +3,7 @@ import warnings
 import logging
 import sys
 import types
+import base64
 
 # Suppress transformers __path__ scanning noise and deprecation warnings
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -20,8 +21,9 @@ import re
 import joblib
 from huggingface_hub import hf_hub_download
 
-import base64
-
+# -----------------------------------------
+# Image Helper
+# -----------------------------------------
 def get_image_base64(image_path):
     with open(image_path, "rb") as f:
         return base64.b64encode(f.read()).decode()
@@ -154,7 +156,7 @@ else:
 # Streamlit Page Settings
 # -----------------------------------------
 st.set_page_config(
-    page_title="بَيِّنْ - تصنيف وتبسيط النصوص العربية",
+    page_title="بَيِّنْ و بسط - تصنيف وتبسيط النصوص العربية",
     page_icon="📖",
     layout="centered"
 )
@@ -223,7 +225,7 @@ def load_base_models():
         models['camelbert_tokenizer'] = None
         models['camelbert_model'] = None
 
-    # --- BiLSTM + CamelBERT-MSA backbone (end-to-end, BERT is inside the model) ---
+    # --- BiLSTM + CamelBERT-MSA backbone ---
     try:
         bilstm_path = hf_hub_download(
             repo_id="SarahAlhalees/BiLSTM_RefinedBayyin",
@@ -239,7 +241,6 @@ def load_base_models():
         cat_card    = bilstm_raw['cat_card']
         model_state = bilstm_raw['model_state']
 
-        # --- Infer dims from state_dict ---
         total_cat_emb = sum(
             min(50, max(4, int(card**0.5)))
             for card in (cat_card.values() if isinstance(cat_card, dict) else [])
@@ -265,16 +266,12 @@ def load_base_models():
             dropout       = getattr(config, 'dropout',       0.3)
             bert_model_name = getattr(config, 'bert_model_name', 'CAMeL-Lab/bert-base-arabic-camelbert-msa')
 
-        # Override lstm_hidden from state_dict if available
         lstm_weight = model_state.get('lstm.weight_hh_l0')
         if lstm_weight is not None:
             lstm_hidden = lstm_weight.shape[1]
 
-        # input_dim is determined by BERT hidden size when use_bert=True,
-        # so we pass a placeholder — it gets overridden inside __init__
         input_dim = 768
 
-        # Reconstruct BiLSTMWithMeta with use_bert=True (BERT lives inside the model)
         bilstm_nn = BiLSTMWithMeta(
             input_dim                 = input_dim,
             categorical_cardinalities = cat_card if isinstance(cat_card, dict) else {},
@@ -297,19 +294,15 @@ def load_base_models():
         )
         models['bilstm_raw'] = bilstm_raw
 
-        # CamelBERT-MSA tokenizer (for tokenizing input to the BiLSTM model)
         models['bilstm_tokenizer'] = AutoTokenizer.from_pretrained(
             bert_model_name,
             use_fast=False
         )
 
-        # Load meta_encoders (scaler is for numeric metadata features, not used in inference)
         meta_raw = joblib.load(meta_enc_path)
         models['meta_encoders']      = meta_raw.get('meta_scaler')
         models['label_encoders']     = meta_raw.get('label_encoders')
         models['meta_encoders_dict'] = meta_raw
-
-        # NOTE: No external bilstm_bert needed — BERT is inside BiLSTMWithMeta
 
     except Exception as e:
         st.warning(f"خطأ في تحميل BiLSTM: {str(e)}")
@@ -323,7 +316,6 @@ def load_base_models():
 
 @st.cache_resource
 def load_meta_learner():
-    """Load stacking meta-learner (SVM trained on Stage-2 features)"""
     try:
         meta_path = hf_hub_download(
             repo_id="SarahAlhalees/ensemble",
@@ -337,7 +329,6 @@ def load_meta_learner():
 
 @st.cache_resource
 def load_simplification_model():
-    """Load AraBART text simplification model"""
     try:
         repo_id = "SarahAlhalees/bassit-simplifier"
         tokenizer = AutoTokenizer.from_pretrained(repo_id)
@@ -377,39 +368,253 @@ if _load_error:
     st.code(_load_error, language="python")
     st.stop()
 
-# --- Debug expander ---
-with st.expander("🔧 تشخيص تحميل النماذج", expanded=False):
-    st.write(f"**arabert loaded:** `{base_models.get('arabert_model') is not None}`")
-    st.write(f"**camelbert loaded:** `{base_models.get('camelbert_model') is not None}`")
-    st.write(f"**bilstm_model type:** `{type(base_models.get('bilstm_model'))}`")
-    st.write(f"**meta_scaler type:** `{type(base_models.get('meta_encoders'))}`")
-    st.write(f"**label_encoders:** `{type(base_models.get('label_encoders'))}`")
-    st.write(f"**meta_learner loaded:** `{meta_learner is not None}`")
+# -----------------------------------------
+# Theme & Background
+# -----------------------------------------
+logo_b64 = get_image_base64("logo2.jpg")
+bg_b64   = get_image_base64("jamal.jpg")
 
-    bilstm_wrapper = base_models.get('bilstm_model')
-    if bilstm_wrapper:
-        st.write(f"**num_numeric:** `{bilstm_wrapper.num_numeric}`")
-        st.write(f"**cat_cardinalities count:** `{len(bilstm_wrapper.cat_cardinalities)}`")
-        st.write(f"**use_bert:** `{bilstm_wrapper.model.use_bert}`")
+st.markdown(f"""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700&display=swap');
 
-    raw = base_models.get('bilstm_raw') or {}
-    if raw:
-        cfg = raw.get('config', {})
-        st.write(f"**config:** `{cfg}`")
-        st.write(f"**cat_card keys:** `{list(raw.get('cat_card', {}).keys())}`")
+    /* ── Hide Streamlit default chrome ── */
+    #MainMenu, footer, header {{visibility: hidden;}}
 
-    scaler = base_models.get('meta_encoders')
-    if scaler and hasattr(scaler, 'n_features_in_'):
-        st.write(f"**meta_scaler.n_features_in_:** `{scaler.n_features_in_}`")
+    /* ── Background ── */
+    .stApp {{
+        background-image: url("data:image/jpeg;base64,{bg_b64}");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        background-repeat: no-repeat;
+        font-family: 'Cairo', sans-serif;
+    }}
+
+    /* Navy overlay for readability */
+    .stApp::before {{
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: linear-gradient(
+            160deg,
+            rgba(10, 25, 60, 0.82) 0%,
+            rgba(10, 25, 60, 0.65) 50%,
+            rgba(10, 25, 60, 0.80) 100%
+        );
+        z-index: 0;
+    }}
+
+    /* Content above overlay */
+    .block-container {{
+        position: relative;
+        z-index: 1;
+        padding-top: 1rem !important;
+        max-width: 780px;
+    }}
+
+    /* ── Logo ── */
+    .logo-wrapper {{
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 1.5rem auto 0.5rem auto;
+    }}
+    .logo-wrapper img {{
+        height: 140px;
+        width: auto;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 16px rgba(212,175,55,0.45));
+    }}
+
+    /* ── Title ── */
+    .app-title {{
+        font-family: 'Amiri', serif;
+        font-size: 3.2rem;
+        font-weight: 700;
+        text-align: center;
+        color: #D4AF37;
+        text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+        margin: 0.2rem 0 0.1rem 0;
+        direction: rtl;
+        letter-spacing: 2px;
+    }}
+    .app-subtitle {{
+        font-family: 'Cairo', sans-serif;
+        font-size: 1.15rem;
+        font-weight: 400;
+        text-align: center;
+        color: #e8dfc8;
+        margin-bottom: 1rem;
+        direction: rtl;
+        opacity: 0.9;
+    }}
+
+    /* ── Gold divider ── */
+    .gold-divider {{
+        border: none;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #D4AF37, transparent);
+        margin: 0.8rem auto 1.4rem auto;
+        width: 60%;
+    }}
+
+    /* ── Text area ── */
+    textarea {{
+        direction: rtl !important;
+        text-align: right !important;
+        font-size: 16px !important;
+        font-family: 'Cairo', sans-serif !important;
+        background-color: rgba(10, 25, 60, 0.75) !important;
+        color: #f0e6c8 !important;
+        border: 1.5px solid #D4AF37 !important;
+        border-radius: 10px !important;
+    }}
+    textarea::placeholder {{
+        color: #a89060 !important;
+    }}
+
+    /* ── Labels ── */
+    label, .stTextArea label {{
+        color: #D4AF37 !important;
+        font-family: 'Cairo', sans-serif !important;
+        font-size: 1rem !important;
+        direction: rtl;
+    }}
+
+    /* ── Primary button (بَيِّنْ) ── */
+    .stButton > button[kind="primary"] {{
+        background: linear-gradient(135deg, #D4AF37 0%, #b8922a 100%) !important;
+        color: #0a1940 !important;
+        font-family: 'Amiri', serif !important;
+        font-size: 1.25rem !important;
+        font-weight: 700 !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 0.6rem 2rem !important;
+        box-shadow: 0 4px 18px rgba(212,175,55,0.35) !important;
+        transition: all 0.2s ease !important;
+    }}
+    .stButton > button[kind="primary"]:hover {{
+        background: linear-gradient(135deg, #e8c84a 0%, #D4AF37 100%) !important;
+        box-shadow: 0 6px 24px rgba(212,175,55,0.55) !important;
+        transform: translateY(-1px) !important;
+    }}
+
+    /* ── Secondary button (بَسِّطْ) ── */
+    .stButton > button[kind="secondary"] {{
+        background: rgba(10, 25, 60, 0.8) !important;
+        color: #D4AF37 !important;
+        font-family: 'Amiri', serif !important;
+        font-size: 1.15rem !important;
+        font-weight: 700 !important;
+        border: 1.5px solid #D4AF37 !important;
+        border-radius: 10px !important;
+        padding: 0.5rem 2rem !important;
+        transition: all 0.2s ease !important;
+    }}
+    .stButton > button[kind="secondary"]:hover {{
+        background: rgba(212,175,55,0.15) !important;
+        box-shadow: 0 4px 16px rgba(212,175,55,0.3) !important;
+    }}
+
+    /* ── Metric cards ── */
+    [data-testid="metric-container"] {{
+        background: rgba(10, 25, 60, 0.75) !important;
+        border: 1px solid #D4AF37 !important;
+        border-radius: 10px !important;
+        padding: 1rem !important;
+        text-align: center !important;
+    }}
+    [data-testid="metric-container"] label {{
+        color: #D4AF37 !important;
+        font-family: 'Cairo', sans-serif !important;
+    }}
+    [data-testid="metric-container"] [data-testid="stMetricValue"] {{
+        color: #f0e6c8 !important;
+        font-family: 'Amiri', serif !important;
+        font-size: 1.6rem !important;
+    }}
+
+    /* ── Progress bar ── */
+    .stProgress > div > div > div {{
+        background: linear-gradient(90deg, #D4AF37, #b8922a) !important;
+        border-radius: 8px !important;
+    }}
+    .stProgress > div > div {{
+        background: rgba(255,255,255,0.1) !important;
+        border-radius: 8px !important;
+    }}
+
+    /* ── Info / Warning boxes ── */
+    .stAlert {{
+        background: rgba(10, 25, 60, 0.8) !important;
+        border-color: #D4AF37 !important;
+        color: #f0e6c8 !important;
+        border-radius: 10px !important;
+    }}
+
+    /* ── Subheaders ── */
+    h2, h3, .stSubheader {{
+        color: #D4AF37 !important;
+        font-family: 'Amiri', serif !important;
+        direction: rtl;
+        text-align: right;
+    }}
+
+    /* ── Confidence text ── */
+    p, .stMarkdown p {{
+        color: #e8dfc8 !important;
+        font-family: 'Cairo', sans-serif !important;
+        direction: rtl;
+        text-align: right;
+    }}
+
+    /* ── Simplified result box ── */
+    .simplified-box {{
+        background: rgba(10, 25, 60, 0.85);
+        padding: 22px 26px;
+        border-radius: 12px;
+        direction: rtl;
+        text-align: right;
+        color: #f0e6c8;
+        border-right: 4px solid #D4AF37;
+        border-top: 1px solid rgba(212,175,55,0.3);
+        margin-top: 20px;
+        font-family: 'Cairo', sans-serif;
+        font-size: 1.05rem;
+        line-height: 1.9;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    }}
+
+    /* ── Caption ── */
+    .stCaption, small {{
+        color: #a89060 !important;
+        text-align: center;
+        display: block;
+    }}
+
+    /* ── Spinner ── */
+    .stSpinner > div {{
+        border-top-color: #D4AF37 !important;
+    }}
+    </style>
+
+    <!-- Logo -->
+    <div class="logo-wrapper">
+        <img src="data:image/jpeg;base64,{logo_b64}" alt="Bayyin Logo"/>
+    </div>
+
+    <!-- Title -->
+    <div class="app-title">بَيِّنْ</div>
+    <div class="app-subtitle">مصنِّف وتبسيط النصوص العربية</div>
+    <div class="gold-divider"></div>
+""", unsafe_allow_html=True)
 
 # -----------------------------------------
 # Feature Extraction
 # -----------------------------------------
 def get_softmax_probs_from_classifier(text, tokenizer, clf_model, max_length=256):
-    """
-    Return 6-class softmax probabilities from a fine-tuned classifier model.
-    Shape: (1, 6)
-    """
     inputs = tokenizer(
         text,
         return_tensors="pt",
@@ -424,23 +629,9 @@ def get_softmax_probs_from_classifier(text, tokenizer, clf_model, max_length=256
 
 
 def get_bilstm_probs(text, models, max_length=256):
-    """
-    Get 6-class softmax probabilities from the BiLSTM+CamelBERT-MSA model.
-
-    The model has BERT embedded inside it (use_bert=True), so we:
-      1. Tokenize with the CamelBERT-MSA tokenizer → token IDs
-      2. Pass token IDs directly into bilstm_nn.forward()
-      3. Use zeroed numeric/categorical metadata (not available at inference time)
-
-    The meta_scaler (4 features) is for numeric metadata columns used during
-    training only — it is NOT applied to BERT output here.
-
-    Shape returned: (1, 6)
-    """
     tokenizer = models['bilstm_tokenizer']
-    bilstm    = models['bilstm_model']      # BiLSTMWrapper
+    bilstm    = models['bilstm_model']
 
-    # Tokenize → token IDs
     inputs = tokenizer(
         text,
         return_tensors="pt",
@@ -449,11 +640,9 @@ def get_bilstm_probs(text, models, max_length=256):
         padding=True
     )
 
-    input_ids      = inputs['input_ids']       # (1, seq_len)
-    attention_mask = inputs['attention_mask']  # (1, seq_len)
+    input_ids      = inputs['input_ids']
+    attention_mask = inputs['attention_mask']
 
-    # Call the model directly (bypassing BiLSTMWrapper.predict_proba)
-    # because we need to pass attention_mask for the internal BERT
     bilstm.model.eval()
     bilstm.model.to(bilstm.device)
 
@@ -468,21 +657,15 @@ def get_bilstm_probs(text, models, max_length=256):
             categorical,
             attention_mask=attention_mask.to(bilstm.device)
         )
-        probs = torch.softmax(logits, dim=1).cpu().numpy()   # (1, 6)
+        probs = torch.softmax(logits, dim=1).cpu().numpy()
 
     return probs
 
 
 def get_model_probabilities(text, models):
-    """
-    Build the 18-dim Stage-2 feature vector for the SVM meta-learner.
-
-    x = [p_AraBERT | p_CamelBERT-MSA | p_BiLSTM]  ∈ R^18
-    (6 softmax probs per base model × 3 models)
-    """
     feature_parts = []
 
-    # ---- 1. AraBERT v2 (6 probs) ----
+    # AraBERT v2
     if models.get('arabert_model') and models.get('arabert_tokenizer'):
         try:
             probs = get_softmax_probs_from_classifier(
@@ -495,7 +678,7 @@ def get_model_probabilities(text, models):
         probs = np.zeros((1, 6))
     feature_parts.append(probs)
 
-    # ---- 2. CamelBERT-MSA fine-tuned classifier (6 probs) ----
+    # CamelBERT-MSA
     if models.get('camelbert_model') and models.get('camelbert_tokenizer'):
         try:
             probs = get_softmax_probs_from_classifier(
@@ -508,7 +691,7 @@ def get_model_probabilities(text, models):
         probs = np.zeros((1, 6))
     feature_parts.append(probs)
 
-    # ---- 3. BiLSTM + internal CamelBERT-MSA backbone (6 probs) ----
+    # BiLSTM
     if models.get('bilstm_model') and models.get('bilstm_tokenizer'):
         try:
             probs = get_bilstm_probs(text, models)
@@ -519,88 +702,13 @@ def get_model_probabilities(text, models):
         probs = np.zeros((1, 6))
     feature_parts.append(probs)
 
-    # Concatenate → (1, 18)
     feature_vector = np.concatenate(feature_parts, axis=1)
     return feature_vector
 
 
 # -----------------------------------------
-# UI Layout
+# Input
 # -----------------------------------------
-# Load images
-logo_b64 = get_image_base64("logo2.png")
-bg_b64   = get_image_base64("jamal.jpg")
-
-st.markdown(f"""
-    <style>
-    /* ── Background ── */
-    .stApp {{
-        background-image: url("data:image/jpg;base64,{bg_b64}");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-        background-repeat: no-repeat;
-    }}
-
-    /* Optional dark overlay so text stays readable */
-    .stApp::before {{
-        content: "";
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.45);
-        z-index: 0;
-    }}
-
-    /* Ensure content sits above overlay */
-    .block-container {{
-        position: relative;
-        z-index: 1;
-    }}
-
-    /* ── Text area RTL ── */
-    textarea {{
-        direction: rtl;
-        text-align: right;
-        font-size: 16px;
-    }}
-
-    /* ── Simplified result box ── */
-    .simplified-box {{
-        background-color: #1e3a2e;
-        padding: 20px;
-        border-radius: 10px;
-        direction: rtl;
-        text-align: right;
-        color: #ffffff;
-        border-right: 4px solid #4ade80;
-        margin-top: 20px;
-    }}
-
-    /* ── Logo container ── */
-    .logo-container {{
-        display: flex;
-        justify-content: center;
-        margin-bottom: 10px;
-    }}
-
-    .logo-container img {{
-        height: 90px;
-        object-fit: contain;
-    }}
-    </style>
-
-    <!-- Logo -->
-    <div class="logo-container">
-        <img src="data:image/png;base64,{logo_b64}" alt="logo"/>
-    </div>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-    <h3 style='text-align: center; direction: rtl; color: #e2e8f0;'>مصنف وتبسيط النصوص العربية</h3>
-""", unsafe_allow_html=True)
-
-st.markdown("---")
-
 text = st.text_area(
     label="أدخل النص العربي",
     height=200,
@@ -621,7 +729,7 @@ if 'original_text' not in st.session_state:
 # -----------------------------------------
 # بَيِّنْ Button
 # -----------------------------------------
-if st.button("📊 بَيِّنْ", use_container_width=True, type="primary"):
+if st.button(" بَيِّنْ", use_container_width=True, type="primary"):
     if not text.strip():
         st.warning("⚠️ الرجاء إدخال نص.")
     elif not meta_learner:
@@ -648,8 +756,8 @@ if st.button("📊 بَيِّنْ", use_container_width=True, type="primary"):
 # Display Results
 # -----------------------------------------
 if st.session_state.classification_done:
-    st.markdown("---")
-    st.subheader("📊 نتيجة التصنيف")
+    st.markdown("<hr class='gold-divider'>", unsafe_allow_html=True)
+    st.subheader("نتيجة التصنيف")
 
     level = st.session_state.readability_level
     level_colors = {1: "🟢", 2: "🟢", 3: "🟡", 4: "🟡", 5: "🔴", 6: "🔴"}
@@ -671,14 +779,12 @@ if st.session_state.classification_done:
     st.progress(int(st.session_state.confidence * 100))
     st.write(f"**نسبة الثقة:** {st.session_state.confidence:.2%}")
 
-    # -----------------------------------------
-    # بَسِّطْ Button (for levels 4–6)
-    # -----------------------------------------
+    # بَسِّطْ Button
     if level >= 4:
-        st.markdown("---")
+        st.markdown("<hr class='gold-divider'>", unsafe_allow_html=True)
         st.info("💡 هذا النص صعب القراءة. يمكنك تبسيطه بالضغط على الزر أدناه.")
 
-        if st.button("✨ بَسِّطْ", use_container_width=True, type="secondary"):
+        if st.button("بَسِّطْ", use_container_width=True, type="secondary"):
             if simplifier_model and simplifier_tokenizer:
                 with st.spinner("جاري التبسيط..."):
                     cleaned = normalize_ar(st.session_state.original_text)
@@ -705,14 +811,14 @@ if st.session_state.classification_done:
                         outputs[0], skip_special_tokens=True
                     )
 
-                    st.markdown("---")
-                    st.subheader("✨ النص المبسط")
+                    st.markdown("<hr class='gold-divider'>", unsafe_allow_html=True)
+                    st.subheader(" النص المبسط")
                     st.markdown(
                         f'<div class="simplified-box">{simplified_text}</div>',
                         unsafe_allow_html=True
                     )
             else:
-                st.warning("⚠️ نموذج التبسيط غير متوفر حالياً.")
+                st.warning(" نموذج التبسيط غير متوفر حالياً.")
 
-st.markdown("---")
+st.markdown("<hr class='gold-divider'>", unsafe_allow_html=True)
 st.caption("© 2025 — مشروع بَيِّنْ")
