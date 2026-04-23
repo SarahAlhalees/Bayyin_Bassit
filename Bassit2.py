@@ -82,7 +82,7 @@ def classify(text):
     return prediction, confidence
 
 # -----------------------------------------
-# UI Styling - The Aesthetic Version
+# UI Styling
 # -----------------------------------------
 logo_b64 = get_image_base64("logo3.png")
 bg_b64   = get_image_base64("jamal.jpg")
@@ -91,7 +91,6 @@ st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@300;400;700&display=swap');
 
-/* Background Overlay with Petrol Blue Tint */
 .stApp {{
     background-image: url("data:image/jpeg;base64,{bg_b64}");
     background-size: cover;
@@ -114,7 +113,6 @@ st.markdown(f"""
     padding-top: 2rem;
 }}
 
-/* Typography */
 h1, h2, h3, p, span, label {{
     font-family: 'Cairo', sans-serif !important;
     text-align: right !important;
@@ -122,11 +120,9 @@ h1, h2, h3, p, span, label {{
     color: #F5EEDC !important;
 }}
 
-/* Logo Animation */
 .logo-wrapper {{
     display: flex;
     justify-content: center;
-    /* زد الرقم من 2.5rem إلى 5rem مثلاً لإنزاله */
     margin-top: 5rem !important; 
     margin-bottom: 1rem;
     animation: fadeInDown 1.5s ease-out;
@@ -150,7 +146,6 @@ h1, h2, h3, p, span, label {{
     letter-spacing: 1px;
 }}
 
-/* Elegant Divider */
 .gold-divider {{
     height: 1px;
     background: linear-gradient(90deg, transparent, #C5A059, transparent);
@@ -159,7 +154,6 @@ h1, h2, h3, p, span, label {{
     opacity: 0.6;
 }}
 
-/* Glassmorphism Input Box */
 textarea {{
     direction: rtl !important;
     text-align: right !important;
@@ -171,18 +165,16 @@ textarea {{
     border-radius: 15px !important;
     padding: 15px !important;
     font-size: 1.1rem !important;
-    transition: all 0.4s ease !important;
 }}
 
-textarea:focus {{
-    border: 1px solid #C5A059 !important;
-    box-shadow: 0 0 20px rgba(197, 160, 89, 0.15) !important;
-    background: rgba(255, 255, 255, 0.08) !important;
+/* CENTER THE BUTTON CONTAINER */
+.stButton {{
+    display: flex;
+    justify-content: center;
 }}
 
-/* Primary Button Aesthetic */
 .stButton > button {{
-    width: 100%;
+    width: 200px !important; /* Fixed width for better centering appearance */
     border-radius: 12px !important;
     border: none !important;
     height: 3.5rem;
@@ -202,7 +194,6 @@ textarea:focus {{
     box-shadow: 0 8px 25px rgba(197, 160, 89, 0.3) !important;
 }}
 
-/* Result Cards */
 .simplified-box {{
     background: rgba(197, 160, 89, 0.1);
     backdrop-filter: blur(5px);
@@ -215,7 +206,6 @@ textarea:focus {{
     font-size: 1.1rem;
 }}
 
-/* Progress Bar Color */
 div[data-testid="stProgress"] > div > div > div > div {{
     background-color: #C5A059 !important;
 }}
@@ -229,24 +219,28 @@ div[data-testid="stProgress"] > div > div > div > div {{
 """, unsafe_allow_html=True)
 
 # -----------------------------------------
-# Content
+# Main Logic
 # -----------------------------------------
 text = st.text_area("أدخل النص المراد معالجته:", height=220, placeholder="اكتب أو الصق النص هنا...")
 
 if 'done' not in st.session_state:
     st.session_state.done = False
 
-if st.button("بَيِّنْ", type="primary"):
-    if text.strip():
-        with st.spinner('يتم الآن فحص لغة النص...'):
-            cleaned = normalize_ar(text)
-            level, conf = classify(cleaned)
-            st.session_state.done = True
-            st.session_state.level = level
-            st.session_state.conf = conf
-            st.session_state.text = text
-    else:
-        st.error("الرجاء تزويدنا بنص للبدء")
+# Using columns to help center the button
+col_b1, col_b2, col_b3 = st.columns([1, 1, 1])
+
+with col_b2:
+    if st.button("بَيِّنْ", type="primary"):
+        if text.strip():
+            with st.spinner('يتم الآن فحص لغة النص...'):
+                cleaned = normalize_ar(text)
+                level, conf = classify(cleaned)
+                st.session_state.done = True
+                st.session_state.level = level
+                st.session_state.conf = conf
+                st.session_state.text = text
+        else:
+            st.error("الرجاء تزويدنا بنص للبدء")
 
 if st.session_state.done:
     st.markdown("<div class='gold-divider'></div>", unsafe_allow_html=True)
@@ -261,25 +255,28 @@ if st.session_state.done:
 
     if st.session_state.level >= 4:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("بَسِّطْ"):
-            if simplifier_model:
-                with st.spinner('جاري إعادة صياغة النص بأسلوب أبسط...'):
-                    cleaned = normalize_ar(st.session_state.text)
-                    inputs = simplifier_tokenizer(cleaned, return_tensors="pt")
-                    outputs = simplifier_model.generate(**inputs, max_length=512)
-                    simplified = simplifier_tokenizer.decode(outputs[0], skip_special_tokens=True)
+        # Center the 'Bassit' button too
+        col_s1, col_s2, col_s3 = st.columns([1, 1, 1])
+        with col_s2:
+            if st.button("بَسِّطْ"):
+                if simplifier_model:
+                    with st.spinner('جاري إعادة صياغة النص بأسلوب أبسط...'):
+                        cleaned = normalize_ar(st.session_state.text)
+                        inputs = simplifier_tokenizer(cleaned, return_tensors="pt")
+                        outputs = simplifier_model.generate(**inputs, max_length=512)
+                        simplified = simplifier_tokenizer.decode(outputs[0], skip_special_tokens=True)
 
-                    st.markdown(f"""
-                    <div class='simplified-box'>
-                        <strong style='color:#C5A059'>النتيجة المبسطة:</strong><br>
-                        {simplified}
-                    </div>
-                    """, unsafe_allow_html=True)
-            else:
-                st.error("خدمة التبسيط غير متاحة حالياً")
+                        st.markdown(f"""
+                        <div class='simplified-box'>
+                            <strong style='color:#C5A059'>النتيجة المبسطة:</strong><br>
+                            {simplified}
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.error("خدمة التبسيط غير متاحة حالياً")
 
 st.markdown("""
 <div style="text-align: center; color: #C5A059; margin-top: 60px; font-size: 0.85rem; opacity: 0.6; font-family: 'Cairo';">
-    © 2026 — مشروع بَيِّنْ وَ بَسِّطْ
+    © 2026 — مشروع بَيِّنْ وَ بَسِّطْ
 </div>
 """, unsafe_allow_html=True)
