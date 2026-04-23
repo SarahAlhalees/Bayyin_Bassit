@@ -126,7 +126,9 @@ h1, h2, h3, p, span, label {{
 .logo-wrapper {{
     display: flex;
     justify-content: center;
-    margin-bottom: 0.5rem;
+    /* زد الرقم من 2.5rem إلى 5rem مثلاً لإنزاله */
+    margin-top: 5rem !important; 
+    margin-bottom: 1rem;
     animation: fadeInDown 1.5s ease-out;
 }}
 .logo-wrapper img {{
