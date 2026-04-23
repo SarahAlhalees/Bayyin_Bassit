@@ -91,6 +91,7 @@ st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@300;400;700&display=swap');
 
+/* Background Overlay */
 .stApp {{
     background-image: url("data:image/jpeg;base64,{bg_b64}");
     background-size: cover;
@@ -113,6 +114,7 @@ st.markdown(f"""
     padding-top: 2rem;
 }}
 
+/* Typography */
 h1, h2, h3, p, span, label {{
     font-family: 'Cairo', sans-serif !important;
     text-align: right !important;
@@ -120,6 +122,7 @@ h1, h2, h3, p, span, label {{
     color: #F5EEDC !important;
 }}
 
+/* Logo Animation */
 .logo-wrapper {{
     display: flex;
     justify-content: center;
@@ -137,15 +140,17 @@ h1, h2, h3, p, span, label {{
     to {{ opacity: 1; transform: translateY(0); }}
 }}
 
+/* SUBTITLE CHANGED TO WHITE */
 .app-subtitle {{
     text-align: center !important;
     font-family: 'Amiri', serif !important;
     font-size: 1.4rem;
-    color: #C5A059 !important;
+    color: #FFFFFF !important;
     margin-bottom: 2rem;
     letter-spacing: 1px;
 }}
 
+/* Elegant Divider */
 .gold-divider {{
     height: 1px;
     background: linear-gradient(90deg, transparent, #C5A059, transparent);
@@ -154,6 +159,7 @@ h1, h2, h3, p, span, label {{
     opacity: 0.6;
 }}
 
+/* Input Box */
 textarea {{
     direction: rtl !important;
     text-align: right !important;
@@ -167,14 +173,14 @@ textarea {{
     font-size: 1.1rem !important;
 }}
 
-/* CENTER THE BUTTON CONTAINER */
+/* BUTTON CENTERING CSS */
 .stButton {{
     display: flex;
     justify-content: center;
 }}
 
 .stButton > button {{
-    width: 200px !important; /* Fixed width for better centering appearance */
+    width: 200px !important; /* Fixed width for a centered appearance */
     border-radius: 12px !important;
     border: none !important;
     height: 3.5rem;
@@ -194,6 +200,7 @@ textarea {{
     box-shadow: 0 8px 25px rgba(197, 160, 89, 0.3) !important;
 }}
 
+/* Result Cards */
 .simplified-box {{
     background: rgba(197, 160, 89, 0.1);
     backdrop-filter: blur(5px);
@@ -206,6 +213,7 @@ textarea {{
     font-size: 1.1rem;
 }}
 
+/* Progress Bar */
 div[data-testid="stProgress"] > div > div > div > div {{
     background-color: #C5A059 !important;
 }}
@@ -219,16 +227,15 @@ div[data-testid="stProgress"] > div > div > div > div {{
 """, unsafe_allow_html=True)
 
 # -----------------------------------------
-# Main Logic
+# Content
 # -----------------------------------------
 text = st.text_area("أدخل النص المراد معالجته:", height=220, placeholder="اكتب أو الصق النص هنا...")
 
 if 'done' not in st.session_state:
     st.session_state.done = False
 
-# Using columns to help center the button
+# Centering the 'Bayyin' button using columns
 col_b1, col_b2, col_b3 = st.columns([1, 1, 1])
-
 with col_b2:
     if st.button("بَيِّنْ", type="primary"):
         if text.strip():
@@ -255,7 +262,7 @@ if st.session_state.done:
 
     if st.session_state.level >= 4:
         st.markdown("<br>", unsafe_allow_html=True)
-        # Center the 'Bassit' button too
+        # Centering the 'Bassit' button using columns
         col_s1, col_s2, col_s3 = st.columns([1, 1, 1])
         with col_s2:
             if st.button("بَسِّطْ"):
