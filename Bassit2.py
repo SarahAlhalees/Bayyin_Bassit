@@ -97,7 +97,7 @@ def classify(text):
 # -----------------------------------------
 # UI Styling
 # -----------------------------------------
-logo_b64 = get_image_base64("logo2.png")
+logo_b64 = get_image_base64("logo3.png")
 bg_b64   = get_image_base64("jamal.jpg")
 
 st.markdown(f"""
