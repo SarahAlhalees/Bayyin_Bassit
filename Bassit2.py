@@ -19,8 +19,11 @@ import numpy as np
 # Image Helper
 # -----------------------------------------
 def get_image_base64(image_path):
-    with open(image_path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
+    try:
+        with open(image_path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except:
+        return ""
 
 # -----------------------------------------
 # Streamlit Config
@@ -69,7 +72,6 @@ def load_simplifier():
         model     = AutoModelForSeq2SeqLM.from_pretrained("SarahAlhalees/bassit-simplifier")
         return tokenizer, model
     except Exception as e:
-        st.warning(f"نموذج التبسيط غير متوفر: {str(e)}")
         return None, None
 
 classifier_tokenizer, classifier_model = load_classifier()
@@ -106,7 +108,7 @@ st.markdown(f"""
 
 #MainMenu, footer, header {{visibility: hidden;}}
 
-/* ── Background ── */
+/* Global RTL and Right-Alignment */
 .stApp {{
     background-image: url("data:image/jpeg;base64,{bg_b64}");
     background-size: cover;
@@ -114,6 +116,7 @@ st.markdown(f"""
     background-attachment: fixed;
     font-family: 'Cairo', sans-serif;
     direction: rtl;
+    text-align: right;
 }}
 
 .stApp::before {{
@@ -129,221 +132,97 @@ st.markdown(f"""
     z-index: 1;
     max-width: 780px;
     direction: rtl;
+    text-align: right;
 }}
 
-/* ── Force ALL streamlit text RTL ── */
-.stMarkdown, .stMarkdown p,
-.stAlert, .stAlert p,
-.stText, .stWrite,
-div[data-testid="stText"],
-div[data-testid="stMarkdownContainer"],
+/* Target all text containers to be right-aligned */
+.rtl-wrapper {{
+    direction: rtl !important;
+    text-align: right !important;
+    width: 100%;
+}}
+
+.stMarkdown, .stMarkdown p, .stAlert, .stAlert p,
 div[data-testid="stMarkdownContainer"] p,
 div[data-testid="stMarkdownContainer"] li,
 div[data-testid="stMarkdownContainer"] h1,
 div[data-testid="stMarkdownContainer"] h2,
-div[data-testid="stMarkdownContainer"] h3,
-[data-testid="stCaptionContainer"],
-.stCaption {{
+div[data-testid="stMarkdownContainer"] h3 {{
     direction: rtl !important;
     text-align: right !important;
     color: #e8dfc8 !important;
-    font-family: 'Cairo', sans-serif !important;
 }}
 
-/* ── Labels ── */
-label,
-.stTextArea label,
-div[data-testid="stWidgetLabel"] p,
-div[data-testid="stWidgetLabel"] {{
+/* Input Labels */
+label, div[data-testid="stWidgetLabel"] p {{
     direction: rtl !important;
     text-align: right !important;
     color: #D4AF37 !important;
-    font-family: 'Cairo', sans-serif !important;
     width: 100% !important;
-    display: block !important;
 }}
 
-/* ── Text area ── */
+/* Text Area Alignment */
 textarea {{
     direction: rtl !important;
     text-align: right !important;
     background: rgba(10,25,60,0.75) !important;
     color: #f0e6c8 !important;
     border: 1.5px solid #D4AF37 !important;
-    border-radius: 10px !important;
-    font-family: 'Cairo', sans-serif !important;
-    font-size: 16px !important;
-}}
-textarea::placeholder {{
-    color: #a89060 !important;
-    text-align: right !important;
 }}
 
-/* ── Metric cards ── */
+/* Results Alignment */
 [data-testid="metric-container"] {{
+    direction: rtl !important;
+    text-align: right !important;
     background: rgba(10, 25, 60, 0.75) !important;
     border: 1px solid #D4AF37 !important;
-    border-radius: 10px !important;
-    padding: 1rem !important;
-    direction: rtl !important;
-    text-align: right !important;
-}}
-[data-testid="metric-container"] label,
-[data-testid="stMetricLabel"] p {{
-    color: #D4AF37 !important;
-    direction: rtl !important;
-    text-align: right !important;
-}}
-[data-testid="stMetricValue"] {{
-    color: #f0e6c8 !important;
-    font-family: 'Amiri', serif !important;
-    font-size: 1.6rem !important;
-    direction: rtl !important;
-    text-align: right !important;
+    padding: 10px !important;
 }}
 
-/* ── Progress bar ── */
-.stProgress > div > div > div {{
-    background: linear-gradient(90deg, #D4AF37, #b8922a) !important;
-    border-radius: 8px !important;
-}}
-.stProgress > div > div {{
-    background: rgba(255,255,255,0.1) !important;
-    border-radius: 8px !important;
-}}
-
-/* ── Warning / info / error alerts ── */
-.stAlert {{
-    background: rgba(10, 25, 60, 0.8) !important;
-    border-color: #D4AF37 !important;
-    border-radius: 10px !important;
-    direction: rtl !important;
-    text-align: right !important;
-}}
-.stAlert p {{
-    color: #f0e6c8 !important;
-    direction: rtl !important;
-    text-align: right !important;
+.simplified-box {{
+    background: rgba(10,25,60,0.85);
+    padding: 20px;
+    border-radius: 12px;
+    border-right: 4px solid #D4AF37;
+    direction: rtl;
+    text-align: right;
+    color: #f0e6c8;
 }}
 
-/* ── st.write bold text ── */
-strong {{
-    color: #D4AF37 !important;
-}}
-
-/* ── Buttons ── */
-.stButton > button[kind="primary"] {{
-    background: linear-gradient(135deg, #D4AF37 0%, #b8922a 100%) !important;
-    color: #0a1940 !important;
-    font-family: 'Amiri', serif !important;
-    font-size: 1.2rem !important;
-    font-weight: 700 !important;
-    border: none !important;
-    border-radius: 10px !important;
-    width: 100% !important;
-}}
-.stButton > button[kind="primary"]:hover {{
-    background: linear-gradient(135deg, #e8c84a 0%, #D4AF37 100%) !important;
-    box-shadow: 0 6px 24px rgba(212,175,55,0.5) !important;
-}}
-.stButton > button[kind="secondary"] {{
-    background: rgba(10,25,60,0.8) !important;
-    color: #D4AF37 !important;
-    font-family: 'Amiri', serif !important;
-    font-size: 1.1rem !important;
-    border: 1.5px solid #D4AF37 !important;
-    border-radius: 10px !important;
-    width: 100% !important;
-}}
-
-/* ── Logo ── */
 .logo-wrapper {{
     display: flex;
     justify-content: center;
-    margin: 2.5rem auto 1rem auto;
-    animation: fadeIn 1.2s ease;
-}}
-.logo-wrapper img {{
-    height: 220px;
-    max-width: 90%;
-    object-fit: contain;
-    filter: drop-shadow(0 6px 20px rgba(212,175,55,0.5));
-}}
-@media (max-width: 768px) {{
-    .logo-wrapper img {{ height: 160px; }}
-}}
-@keyframes fadeIn {{
-    from {{ opacity: 0; transform: translateY(-10px); }}
-    to   {{ opacity: 1; transform: translateY(0); }}
-}}
-
-/* ── Subtitle ── */
-.app-subtitle {{
-    text-align: center !important;
-    color: #e8dfc8 !important;
-    font-family: 'Cairo', sans-serif !important;
     margin-bottom: 1rem;
-    direction: rtl;
 }}
+.logo-wrapper img {{ height: 200px; filter: drop-shadow(0 4px 10px #D4AF37); }}
 
-/* ── Gold divider ── */
 .gold-divider {{
     height: 2px;
     background: linear-gradient(90deg, transparent, #D4AF37, transparent);
-    margin: 1rem auto;
-    width: 60%;
-    border: none;
-}}
-
-/* ── Simplified result box ── */
-.simplified-box {{
-    background: rgba(10,25,60,0.85);
-    padding: 22px 26px;
-    border-radius: 12px;
-    color: #f0e6c8;
-    border-right: 4px solid #D4AF37;
-    border-top: 1px solid rgba(212,175,55,0.3);
-    margin-top: 20px;
-    direction: rtl;
-    text-align: right;
-    font-family: 'Cairo', sans-serif;
-    font-size: 1.05rem;
-    line-height: 1.9;
-}}
-
-/* ── Caption ── */
-.stCaption, [data-testid="stCaptionContainer"] p {{
-    color: #a89060 !important;
-    text-align: center !important;
-    direction: rtl !important;
-}}
-
-/* ── Spinner ── */
-.stSpinner > div {{
-    border-top-color: #D4AF37 !important;
+    margin: 20px 0;
 }}
 </style>
 
-<div class="logo-wrapper">
-    <img src="data:image/png;base64,{logo_b64}">
+<div class="rtl-wrapper">
+    <div class="logo-wrapper">
+        <img src="data:image/png;base64,{logo_b64}">
+    </div>
+    <h2 style="text-align: center; color: #e8dfc8;">تصنيف وتبسيط النصوص العربية</h2>
+    <div class="gold-divider"></div>
 </div>
-<div class="app-subtitle">تصنيف وتبسيط النصوص العربية</div>
-<div class="gold-divider"></div>
 """, unsafe_allow_html=True)
 
 # -----------------------------------------
-# Input
+# Main Logic Wrapped in RTL Div
 # -----------------------------------------
+st.markdown('<div class="rtl-wrapper">', unsafe_allow_html=True)
+
 text = st.text_area("أدخل النص العربي", height=200, placeholder="اكتب أو الصق النص هنا...")
 
-# Session state
 if 'done' not in st.session_state:
     st.session_state.done = False
 
-# -----------------------------------------
-# Classify Button
-# -----------------------------------------
-if st.button("📊 تحليل", use_container_width=True, type="primary"):
+if st.button("تحليل", use_container_width=True, type="primary"):
     if text.strip():
         with st.spinner("جاري التحليل..."):
             cleaned = normalize_ar(text)
@@ -355,24 +234,13 @@ if st.button("📊 تحليل", use_container_width=True, type="primary"):
     else:
         st.warning("⚠️ الرجاء إدخال نص")
 
-# -----------------------------------------
-# Results
-# -----------------------------------------
 if st.session_state.done:
     st.markdown("<div class='gold-divider'></div>", unsafe_allow_html=True)
-
+    
     level = st.session_state.level
     conf  = st.session_state.conf
-
     level_colors = {1: "🟢", 2: "🟢", 3: "🟡", 4: "🟡", 5: "🔴", 6: "🔴"}
-    level_names  = {
-        1: "سهل جداً",
-        2: "سهل",
-        3: "متوسط",
-        4: "صعب قليلاً",
-        5: "صعب",
-        6: "صعب جداً"
-    }
+    level_names  = {1: "سهل جداً", 2: "سهل", 3: "متوسط", 4: "صعب قليلاً", 5: "صعب", 6: "صعب جداً"}
 
     col1, col2 = st.columns(2)
     with col1:
@@ -381,50 +249,27 @@ if st.session_state.done:
         st.metric(label="الوصف", value=level_names.get(level, "غير معروف"))
 
     st.progress(int(conf * 100))
-    st.markdown(
-        f"<p style='direction:rtl;text-align:right;color:#e8dfc8;'>"
-        f"<strong style='color:#D4AF37;'>نسبة الثقة:</strong> {conf:.2%}</p>",
-        unsafe_allow_html=True
-    )
+    st.markdown(f"**نسبة الثقة:** {conf:.2%}")
 
-    # بَسِّطْ Button (levels 4–6 only)
     if level >= 4:
         st.markdown("<div class='gold-divider'></div>", unsafe_allow_html=True)
         st.info("💡 هذا النص صعب القراءة. يمكنك تبسيطه بالضغط على الزر أدناه.")
 
-        if st.button("✨ تبسيط", use_container_width=True, type="secondary"):
+        if st.button("تبسيط", use_container_width=True, type="secondary"):
             if simplifier_model:
                 with st.spinner("جاري التبسيط..."):
                     cleaned = normalize_ar(st.session_state.text)
-                    inputs  = simplifier_tokenizer(
-                        cleaned,
-                        return_tensors="pt",
-                        truncation=True,
-                        padding=True,
-                        max_length=512
-                    )
+                    inputs  = simplifier_tokenizer(cleaned, return_tensors="pt", truncation=True, padding=True, max_length=512)
                     with torch.no_grad():
-                        outputs = simplifier_model.generate(
-                            **inputs,
-                            max_length=512,
-                            num_beams=4,
-                            length_penalty=1.0,
-                            early_stopping=True,
-                            no_repeat_ngram_size=3
-                        )
+                        outputs = simplifier_model.generate(**inputs, max_length=512, num_beams=4)
                     simplified = simplifier_tokenizer.decode(outputs[0], skip_special_tokens=True)
-                    st.markdown("<div class='gold-divider'></div>", unsafe_allow_html=True)
-                    st.markdown(
-                        f"<p style='direction:rtl;text-align:right;color:#D4AF37;"
-                        f"font-family:Amiri,serif;font-size:1.2rem;'>✨ النص المبسط</p>",
-                        unsafe_allow_html=True
-                    )
-                    st.markdown(
-                        f"<div class='simplified-box'>{simplified}</div>",
-                        unsafe_allow_html=True
-                    )
+                    
+                    st.markdown("<p style='color:#D4AF37; font-size:1.2rem;'>النص المبسط</p>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='simplified-box'>{simplified}</div>", unsafe_allow_html=True)
             else:
                 st.warning("⚠️ نموذج التبسيط غير متوفر حالياً.")
+
+st.markdown('</div>', unsafe_allow_html=True) # End RTL Wrapper
 
 st.markdown("<div class='gold-divider'></div>", unsafe_allow_html=True)
 st.caption("© 2025 — مشروع بَيِّنْ")
