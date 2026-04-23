@@ -229,7 +229,7 @@ div[data-testid="stProgress"] > div > div > div > div {{
 # -----------------------------------------
 # Content
 # -----------------------------------------
-text = st.text_area("أدخل النص المراد معالجته:", height=220, placeholder="اكتب أو الصق النص هنا...")
+text = st.text_area("أدخل النص المراد تصنيفه:", height=220, placeholder="اكتب أو الصق النص هنا...")
 
 if 'done' not in st.session_state:
     st.session_state.done = False
