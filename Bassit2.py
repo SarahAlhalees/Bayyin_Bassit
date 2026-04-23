@@ -234,7 +234,7 @@ text = st.text_area("أدخل النص المراد معالجته:", height=220
 if 'done' not in st.session_state:
     st.session_state.done = False
 
-if st.button("تحليل النص الآن", type="primary"):
+if st.button("بَيِّنْ", type="primary"):
     if text.strip():
         with st.spinner('يتم الآن فحص لغة النص...'):
             cleaned = normalize_ar(text)
@@ -259,7 +259,7 @@ if st.session_state.done:
 
     if st.session_state.level >= 4:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("توليد نسخة مبسطة"):
+        if st.button("بَسِّطْ"):
             if simplifier_model:
                 with st.spinner('جاري إعادة صياغة النص بأسلوب أبسط...'):
                     cleaned = normalize_ar(st.session_state.text)
