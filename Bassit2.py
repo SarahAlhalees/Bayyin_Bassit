@@ -222,7 +222,7 @@ div[data-testid="stProgress"] > div > div > div > div {{
 <div class="logo-wrapper">
     <img src="data:image/png;base64,{logo_b64}">
 </div>
-<div class="app-subtitle">نظام ذكي لتصنيف مستوى مقروئية النصوص العربية وتحليلها</div>
+<div class="app-subtitle">نظام ذكي لتصنيف مستوى مقروئية النصوص العربية وتبسيطها</div>
 <div class="gold-divider"></div>
 """, unsafe_allow_html=True)
 
