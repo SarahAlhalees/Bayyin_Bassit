@@ -29,7 +29,7 @@ def get_image_base64(image_path):
 # Streamlit Config
 # -----------------------------------------
 st.set_page_config(
-    page_title="بَيِّنْ وَ بَسِّطْ",
+    page_title="بَيِّنْ وَ بَسِيطْ",
     page_icon="📖",
     layout="centered"
 )
@@ -84,7 +84,7 @@ def classify(text):
 # -----------------------------------------
 # UI Styling
 # -----------------------------------------
-logo_b64 = get_image_base64("logo3.png")
+logo_b64 = get_image_base64("logo4.png")
 bg_b64   = get_image_base64("jamal.jpg")
 
 st.markdown(f"""
@@ -163,7 +163,7 @@ h1, h2, h3, p, span, label {{
 textarea {{
     direction: rtl !important;
     text-align: right !important;
-    background: rgba(255, 255, 255, 0.05) !important;
+    background: rgba(15, 30, 45, 0.75) !important;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     color: #F5EEDC !important;
@@ -171,6 +171,19 @@ textarea {{
     border-radius: 15px !important;
     padding: 15px !important;
     font-size: 1.1rem !important;
+    caret-color: #F5EEDC !important;
+}}
+
+textarea::placeholder {{
+    color: rgba(245, 238, 220, 0.45) !important;
+}}
+
+/* Force text color even when Streamlit overrides in light mode */
+div[data-testid="stTextArea"] textarea,
+div[data-baseweb="textarea"] textarea,
+.stTextArea textarea {{
+    color: #F5EEDC !important;
+    background: rgba(15, 30, 45, 0.75) !important;
 }}
 
 /* BUTTON CENTERING CSS */
