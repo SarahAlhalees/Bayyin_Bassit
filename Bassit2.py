@@ -322,24 +322,12 @@ with col_b2:
 if st.session_state.done:
     st.markdown("<div class='gold-divider'></div>", unsafe_allow_html=True)
 
-    col1, col2 = st.columns([1, 1])
-    with col2:
-        st.markdown(
-            f"<div class='stat-pill' style='text-align:right; width:100%;'>"
-            f"مستوى الصعوبة: <span class='gold'>{st.session_state.level}</span>"
-            f"</div>",
-            unsafe_allow_html=True
-        )
-    with col1:
-        st.markdown(
-            f"<div class='stat-pill' style='text-align:left; width:100%;'>"
-            f"الدقة: <span class='gold'>{st.session_state.conf:.1%}</span>"
-            f"</div>",
-            unsafe_allow_html=True
-        )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.progress(st.session_state.conf)
+    st.markdown(
+        f"<div class='stat-pill' style='text-align:center; width:100%;'>"
+        f"مستوى الصعوبة: <span class='gold'>{st.session_state.level}</span>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
 
     if st.session_state.level >= 4:
         st.markdown("<br>", unsafe_allow_html=True)
