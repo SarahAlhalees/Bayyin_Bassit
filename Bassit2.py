@@ -272,43 +272,6 @@ div[data-baseweb="textarea"] textarea,
     box-shadow: 0 8px 25px rgba(197, 160, 89, 0.25) !important;
 }}
 
-/* ── SIMPLIFY BUTTONS ROW — centered on all screen sizes ── */
-/* Target the vertical stack Streamlit creates for consecutive buttons
-   and re-layout it as a centred flex row */
-div[data-testid="stVerticalBlock"]:has(
-    button[key="btn_mild"],
-    button[key="btn_medium"],
-    button[key="btn_strong"]
-) {{
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 12px !important;
-}}
-
-/* Fallback: give every secondary .stButton the same flex treatment
-   so the row always centres regardless of Streamlit DOM nesting */
-.simplify-btn-row {{
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 12px !important;
-    width: 100% !important;
-    margin: 0.5rem 0 1rem 0 !important;
-}}
-
-.simplify-btn-row .stButton,
-.simplify-btn-row div[data-testid="stButton"] {{
-    flex: 0 0 auto !important;
-    width: auto !important;
-    display: flex !important;
-    justify-content: center !important;
-}}
-
 /* Result stat pills */
 .stat-pill {{
     display: inline-block;
@@ -445,63 +408,38 @@ if st.session_state.done:
             unsafe_allow_html=True
         )
 
-        # Columns for side-by-side layout; CSS below centres each button within its column
-        col1, col2, col3 = st.columns([1, 1, 1])
+        # Three buttons side-by-side
+        col1, col2, col3 = st.columns(3)
+
         with col1:
-            btn_mild   = st.button("تبسيط خفيف ✦",   key="btn_mild")
+            if st.button("تبسيط خفيف ✦", key="btn_mild"):
+                if simplifier_model:
+                    with st.spinner("جاري التبسيط الخفيف..."):
+                        st.session_state.simplified_results["mild"] = simplify(
+                            st.session_state.text, "mild"
+                        )
+                else:
+                    st.error("خدمة التبسيط غير متاحة حالياً")
+
         with col2:
-            btn_medium = st.button("تبسيط متوسط ✦✦", key="btn_medium")
+            if st.button("تبسيط متوسط ✦✦", key="btn_medium"):
+                if simplifier_model:
+                    with st.spinner("جاري التبسيط المتوسط..."):
+                        st.session_state.simplified_results["medium"] = simplify(
+                            st.session_state.text, "medium"
+                        )
+                else:
+                    st.error("خدمة التبسيط غير متاحة حالياً")
+
         with col3:
-            btn_strong = st.button("تبسيط قوي ✦✦✦",  key="btn_strong")
-
-        # Injected after render so the selector hits the live DOM
-        st.markdown("""
-        <style>
-        [data-testid="stHorizontalBlock"] [data-testid="stColumn"] .stButton {
-            display: flex !important;
-            justify-content: center !important;
-            width: 100% !important;
-        }
-        [data-testid="stHorizontalBlock"] [data-testid="stColumn"] .stButton > button {
-            width: 90% !important;
-            max-width: 180px !important;
-        }
-        @media (max-width: 480px) {
-            [data-testid="stHorizontalBlock"] [data-testid="stColumn"] .stButton > button {
-                width: 100% !important;
-                max-width: 220px !important;
-                font-size: 0.9rem !important;
-            }
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
-        if btn_mild:
-            if simplifier_model:
-                with st.spinner("جاري التبسيط الخفيف..."):
-                    st.session_state.simplified_results["mild"] = simplify(
-                        st.session_state.text, "mild"
-                    )
-            else:
-                st.error("خدمة التبسيط غير متاحة حالياً")
-
-        if btn_medium:
-            if simplifier_model:
-                with st.spinner("جاري التبسيط المتوسط..."):
-                    st.session_state.simplified_results["medium"] = simplify(
-                        st.session_state.text, "medium"
-                    )
-            else:
-                st.error("خدمة التبسيط غير متاحة حالياً")
-
-        if btn_strong:
-            if simplifier_model:
-                with st.spinner("جاري التبسيط القوي..."):
-                    st.session_state.simplified_results["strong"] = simplify(
-                        st.session_state.text, "strong"
-                    )
-            else:
-                st.error("خدمة التبسيط غير متاحة حالياً")
+            if st.button("تبسيط قوي ✦✦✦", key="btn_strong"):
+                if simplifier_model:
+                    with st.spinner("جاري التبسيط القوي..."):
+                        st.session_state.simplified_results["strong"] = simplify(
+                            st.session_state.text, "strong"
+                        )
+                else:
+                    st.error("خدمة التبسيط غير متاحة حالياً")
 
         # Render all results that have been generated so far
         for level_key in ("mild", "medium", "strong"):
@@ -518,6 +456,6 @@ if st.session_state.done:
 
 st.markdown("""
 <div style="text-align: center; color: #C5A059; margin-top: 60px; font-size: 0.85rem; opacity: 0.6; font-family: 'Cairo';">
-    © 2026 — مشروع بَيِّنْ وَ بَسِّطْ
+    © 2026 — مشروع بَيِّنْ وَ بَسِيطْ
 </div>
 """, unsafe_allow_html=True)
