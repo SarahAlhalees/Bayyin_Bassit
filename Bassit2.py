@@ -92,9 +92,9 @@ LEVEL_TOKEN = {
 }
 
 LEVEL_LABELS = {
-    "mild":   "تبسيط خفيف",
-    "medium": "تبسيط متوسط",
-    "strong": "تبسيط قوي",
+    "mild":   "التبسيط الأولي",
+    "medium": "التبسيط المتوسط",
+    "strong": "التبسيط القوي",
 }
 
 LEVEL_ICONS = {
@@ -414,7 +414,7 @@ if st.session_state.done:
         with col1:
             if st.button("تبسيط أولي", key="btn_mild"):
                 if simplifier_model:
-                    with st.spinner("جاري التبسيط الخفيف..."):
+                    with st.spinner("جاري التبسيط الأولي..."):
                         st.session_state.simplified_results["mild"] = simplify(
                             st.session_state.text, "mild"
                         )
@@ -449,7 +449,7 @@ if st.session_state.done:
                 label = LEVEL_LABELS[level_key]
                 st.markdown(f"""
                 <div class='simplified-box'>
-                    <span class='box-label'>{icon} النتيجة — {label}:</span>
+                    <span class='box-label'>النتيجة — {label}:</span>
                     <div class='box-text'>{result}</div>
                 </div>
                 """, unsafe_allow_html=True)
