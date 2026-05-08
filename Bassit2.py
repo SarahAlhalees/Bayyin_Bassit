@@ -272,26 +272,41 @@ div[data-baseweb="textarea"] textarea,
     box-shadow: 0 8px 25px rgba(197, 160, 89, 0.25) !important;
 }}
 
-/* Force the simplification button row to stay centered & wrap on mobile */
+/* ── SIMPLIFY BUTTONS ROW — centered on all screen sizes ── */
+/* Target the vertical stack Streamlit creates for consecutive buttons
+   and re-layout it as a centred flex row */
+div[data-testid="stVerticalBlock"]:has(
+    button[key="btn_mild"],
+    button[key="btn_medium"],
+    button[key="btn_strong"]
+) {{
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 12px !important;
+}}
+
+/* Fallback: give every secondary .stButton the same flex treatment
+   so the row always centres regardless of Streamlit DOM nesting */
 .simplify-btn-row {{
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: wrap !important;
     justify-content: center !important;
+    align-items: center !important;
     gap: 12px !important;
+    width: 100% !important;
     margin: 0.5rem 0 1rem 0 !important;
 }}
 
-/* Each button cell inside the flex row */
-.simplify-btn-row > div[data-testid="stButton"],
-.simplify-btn-row .stButton {{
+.simplify-btn-row .stButton,
+.simplify-btn-row div[data-testid="stButton"] {{
     flex: 0 0 auto !important;
     width: auto !important;
-}}
-
-/* Override Streamlit's column gap behaviour */
-[data-testid="stHorizontalBlock"] > div {{
-    min-width: 0 !important;
+    display: flex !important;
+    justify-content: center !important;
 }}
 
 /* Result stat pills */
@@ -430,12 +445,36 @@ if st.session_state.done:
             unsafe_allow_html=True
         )
 
-        # Three buttons — flex row stays centered on both desktop & mobile
-        st.markdown("<div class='simplify-btn-row'>", unsafe_allow_html=True)
-        btn_mild   = st.button("تبسيط خفيف ✦",   key="btn_mild")
-        btn_medium = st.button("تبسيط متوسط ✦✦", key="btn_medium")
-        btn_strong = st.button("تبسيط قوي ✦✦✦",  key="btn_strong")
-        st.markdown("</div>", unsafe_allow_html=True)
+        # Columns for side-by-side layout; CSS below centres each button within its column
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col1:
+            btn_mild   = st.button("تبسيط خفيف ✦",   key="btn_mild")
+        with col2:
+            btn_medium = st.button("تبسيط متوسط ✦✦", key="btn_medium")
+        with col3:
+            btn_strong = st.button("تبسيط قوي ✦✦✦",  key="btn_strong")
+
+        # Injected after render so the selector hits the live DOM
+        st.markdown("""
+        <style>
+        [data-testid="stHorizontalBlock"] [data-testid="stColumn"] .stButton {
+            display: flex !important;
+            justify-content: center !important;
+            width: 100% !important;
+        }
+        [data-testid="stHorizontalBlock"] [data-testid="stColumn"] .stButton > button {
+            width: 90% !important;
+            max-width: 180px !important;
+        }
+        @media (max-width: 480px) {
+            [data-testid="stHorizontalBlock"] [data-testid="stColumn"] .stButton > button {
+                width: 100% !important;
+                max-width: 220px !important;
+                font-size: 0.9rem !important;
+            }
+        }
+        </style>
+        """, unsafe_allow_html=True)
 
         if btn_mild:
             if simplifier_model:
@@ -479,6 +518,6 @@ if st.session_state.done:
 
 st.markdown("""
 <div style="text-align: center; color: #C5A059; margin-top: 60px; font-size: 0.85rem; opacity: 0.6; font-family: 'Cairo';">
-    © 2026 — مشروع بَيِّنْ وَ بَسِيطْ
+    © 2026 — مشروع بَيِّنْ وَ بَسِّطْ
 </div>
 """, unsafe_allow_html=True)
