@@ -272,6 +272,28 @@ div[data-baseweb="textarea"] textarea,
     box-shadow: 0 8px 25px rgba(197, 160, 89, 0.25) !important;
 }}
 
+/* Force the simplification button row to stay centered & wrap on mobile */
+.simplify-btn-row {{
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    margin: 0.5rem 0 1rem 0 !important;
+}}
+
+/* Each button cell inside the flex row */
+.simplify-btn-row > div[data-testid="stButton"],
+.simplify-btn-row .stButton {{
+    flex: 0 0 auto !important;
+    width: auto !important;
+}}
+
+/* Override Streamlit's column gap behaviour */
+[data-testid="stHorizontalBlock"] > div {{
+    min-width: 0 !important;
+}}
+
 /* Result stat pills */
 .stat-pill {{
     display: inline-block;
@@ -408,38 +430,39 @@ if st.session_state.done:
             unsafe_allow_html=True
         )
 
-        # Three buttons side-by-side
-        col1, col2, col3 = st.columns(3)
+        # Three buttons — flex row stays centered on both desktop & mobile
+        st.markdown("<div class='simplify-btn-row'>", unsafe_allow_html=True)
+        btn_mild   = st.button("تبسيط خفيف ✦",   key="btn_mild")
+        btn_medium = st.button("تبسيط متوسط ✦✦", key="btn_medium")
+        btn_strong = st.button("تبسيط قوي ✦✦✦",  key="btn_strong")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        with col1:
-            if st.button("تبسيط خفيف ✦", key="btn_mild"):
-                if simplifier_model:
-                    with st.spinner("جاري التبسيط الخفيف..."):
-                        st.session_state.simplified_results["mild"] = simplify(
-                            st.session_state.text, "mild"
-                        )
-                else:
-                    st.error("خدمة التبسيط غير متاحة حالياً")
+        if btn_mild:
+            if simplifier_model:
+                with st.spinner("جاري التبسيط الخفيف..."):
+                    st.session_state.simplified_results["mild"] = simplify(
+                        st.session_state.text, "mild"
+                    )
+            else:
+                st.error("خدمة التبسيط غير متاحة حالياً")
 
-        with col2:
-            if st.button("تبسيط متوسط ✦✦", key="btn_medium"):
-                if simplifier_model:
-                    with st.spinner("جاري التبسيط المتوسط..."):
-                        st.session_state.simplified_results["medium"] = simplify(
-                            st.session_state.text, "medium"
-                        )
-                else:
-                    st.error("خدمة التبسيط غير متاحة حالياً")
+        if btn_medium:
+            if simplifier_model:
+                with st.spinner("جاري التبسيط المتوسط..."):
+                    st.session_state.simplified_results["medium"] = simplify(
+                        st.session_state.text, "medium"
+                    )
+            else:
+                st.error("خدمة التبسيط غير متاحة حالياً")
 
-        with col3:
-            if st.button("تبسيط قوي ✦✦✦", key="btn_strong"):
-                if simplifier_model:
-                    with st.spinner("جاري التبسيط القوي..."):
-                        st.session_state.simplified_results["strong"] = simplify(
-                            st.session_state.text, "strong"
-                        )
-                else:
-                    st.error("خدمة التبسيط غير متاحة حالياً")
+        if btn_strong:
+            if simplifier_model:
+                with st.spinner("جاري التبسيط القوي..."):
+                    st.session_state.simplified_results["strong"] = simplify(
+                        st.session_state.text, "strong"
+                    )
+            else:
+                st.error("خدمة التبسيط غير متاحة حالياً")
 
         # Render all results that have been generated so far
         for level_key in ("mild", "medium", "strong"):
@@ -456,6 +479,6 @@ if st.session_state.done:
 
 st.markdown("""
 <div style="text-align: center; color: #C5A059; margin-top: 60px; font-size: 0.85rem; opacity: 0.6; font-family: 'Cairo';">
-    © 2026 — مشروع بَيِّنْ وَ بَسِّطْ
+    © 2026 — مشروع بَيِّنْ وَ بَسِيطْ
 </div>
 """, unsafe_allow_html=True)
