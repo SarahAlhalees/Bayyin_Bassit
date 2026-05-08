@@ -412,7 +412,7 @@ if st.session_state.done:
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            if st.button("تبسيط خفيف ✦", key="btn_mild"):
+            if st.button("تبسيط أولي", key="btn_mild"):
                 if simplifier_model:
                     with st.spinner("جاري التبسيط الخفيف..."):
                         st.session_state.simplified_results["mild"] = simplify(
@@ -422,7 +422,7 @@ if st.session_state.done:
                     st.error("خدمة التبسيط غير متاحة حالياً")
 
         with col2:
-            if st.button("تبسيط متوسط ✦✦", key="btn_medium"):
+            if st.button("تبسيط متوسط", key="btn_medium"):
                 if simplifier_model:
                     with st.spinner("جاري التبسيط المتوسط..."):
                         st.session_state.simplified_results["medium"] = simplify(
@@ -432,7 +432,7 @@ if st.session_state.done:
                     st.error("خدمة التبسيط غير متاحة حالياً")
 
         with col3:
-            if st.button("تبسيط قوي ✦✦✦", key="btn_strong"):
+            if st.button("تبسيط قوي", key="btn_strong"):
                 if simplifier_model:
                     with st.spinner("جاري التبسيط القوي..."):
                         st.session_state.simplified_results["strong"] = simplify(
