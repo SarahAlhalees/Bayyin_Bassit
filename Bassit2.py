@@ -300,6 +300,24 @@ div[data-testid="stProgress"] > div > div > div > div {{
 # -----------------------------------------
 # Content
 # -----------------------------------------
+# -----------------------------------------
+# Validation Helper
+# -----------------------------------------
+def is_valid_arabic(text):
+    # Remove whitespace and common punctuation
+    check_text = re.sub(r"[\s\d\W_]+", "", text)
+    if not check_text:
+        return False, "الرجاء إدخال نص (ليس أرقاماً فقط)"
+    
+    # Check if it contains Arabic characters (\u0600-\u06FF)
+    if not re.search(r"[\u0600-\u06FF]", text):
+        return False, "الرجاء إدخال نص باللغة العربية فقط"
+    
+    return True, ""
+
+# -----------------------------------------
+# Content
+# -----------------------------------------
 text = st.text_area("أدخل النص المراد تصنيفه:", height=220, placeholder="اكتب أو الصق النص هنا...")
 
 if 'done' not in st.session_state:
@@ -309,13 +327,20 @@ col_b1, col_b2, col_b3 = st.columns([1, 1, 1])
 with col_b2:
     if st.button("بَيِّنْ", type="primary"):
         if text.strip():
-            with st.spinner('يتم الآن فحص لغة النص...'):
-                cleaned = normalize_ar(text)
-                level, conf = classify(cleaned)
-                st.session_state.done = True
-                st.session_state.level = level
-                st.session_state.conf = conf
-                st.session_state.text = text
+            # Apply the new validation
+            is_valid, error_msg = is_valid_arabic(text)
+            
+            if not is_valid:
+                st.error(error_msg)
+                st.session_state.done = False
+            else:
+                with st.spinner('يتم الآن فحص لغة النص...'):
+                    cleaned = normalize_ar(text)
+                    level, conf = classify(cleaned)
+                    st.session_state.done = True
+                    st.session_state.level = level
+                    st.session_state.conf = conf
+                    st.session_state.text = text
         else:
             st.error("الرجاء تزويدنا بنص للبدء")
 
