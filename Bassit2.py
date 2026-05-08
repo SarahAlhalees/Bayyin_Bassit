@@ -82,6 +82,44 @@ def classify(text):
     return prediction, confidence
 
 # -----------------------------------------
+# Simplification helper — uses level prefix tokens
+# [L3] = mild  |  [L2] = medium  |  [L1] = strong
+# -----------------------------------------
+LEVEL_TOKEN = {
+    "mild":   "[L3]",
+    "medium": "[L2]",
+    "strong": "[L1]",
+}
+
+LEVEL_LABELS = {
+    "mild":   "تبسيط خفيف",
+    "medium": "تبسيط متوسط",
+    "strong": "تبسيط قوي",
+}
+
+LEVEL_ICONS = {
+    "mild":   "✦",
+    "medium": "✦✦",
+    "strong": "✦✦✦",
+}
+
+def simplify(text, level_key):
+    """Run AraBART with the appropriate level-control prefix token."""
+    prefix  = LEVEL_TOKEN[level_key]
+    cleaned = normalize_ar(text)
+    source  = f"{prefix} {cleaned}"
+    inputs  = simplifier_tokenizer(source, return_tensors="pt", truncation=True, max_length=256)
+    outputs = simplifier_model.generate(
+        **inputs,
+        max_length=512,
+        num_beams=4,
+        no_repeat_ngram_size=3,
+        length_penalty=1.0,
+        min_length=10,
+    )
+    return simplifier_tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+# -----------------------------------------
 # UI Styling
 # -----------------------------------------
 logo_b64 = get_image_base64("logo4.png")
@@ -214,13 +252,15 @@ div[data-baseweb="textarea"] textarea,
     box-shadow: 0 8px 28px rgba(197, 160, 89, 0.45) !important;
 }}
 
-/* Secondary button — بَسِّطْ  (Streamlit renders this as kind="secondary") */
+/* Secondary buttons — simplification levels */
 .stButton > button[kind="secondary"],
 .stButton > button:not([kind="primary"]) {{
     background: rgba(12, 24, 36, 0.88) !important;
     color: #F5EEDC !important;
     border: 1.5px solid rgba(197, 160, 89, 0.65) !important;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35) !important;
+    width: 180px !important;
+    font-size: 1rem !important;
 }}
 
 .stButton > button[kind="secondary"]:hover,
@@ -250,9 +290,14 @@ div[data-baseweb="textarea"] textarea,
     font-size: 1.35rem;
 }}
 
-/* Progress Bar */
-div[data-testid="stProgress"] > div > div > div > div {{
-    background-color: #C5A059 !important;
+/* Level buttons label */
+.simplify-label {{
+    text-align: center;
+    font-family: 'Cairo', sans-serif;
+    font-size: 1rem;
+    color: rgba(197, 160, 89, 0.85);
+    margin-bottom: 0.5rem;
+    direction: rtl;
 }}
 
 /* Simplified result box */
@@ -267,7 +312,7 @@ div[data-testid="stProgress"] > div > div > div > div {{
     border-left: 1px solid rgba(197, 160, 89, 0.2);
     border-top: 1px solid rgba(197, 160, 89, 0.15);
     border-bottom: 1px solid rgba(197, 160, 89, 0.1);
-    margin-top: 25px;
+    margin-top: 15px;
     line-height: 2;
     font-size: 1.15rem;
     direction: rtl;
@@ -298,52 +343,53 @@ div[data-testid="stProgress"] > div > div > div > div {{
 """, unsafe_allow_html=True)
 
 # -----------------------------------------
-# Content
-# -----------------------------------------
-# -----------------------------------------
 # Validation Helper
 # -----------------------------------------
 def is_valid_arabic(text):
-    # Remove whitespace and common punctuation
     check_text = re.sub(r"[\s\d\W_]+", "", text)
     if not check_text:
         return False, "الرجاء إدخال نص (ليس أرقاماً فقط)"
-    
-    # Check if it contains Arabic characters (\u0600-\u06FF)
     if not re.search(r"[\u0600-\u06FF]", text):
         return False, "الرجاء إدخال نص باللغة العربية فقط"
-    
     return True, ""
 
 # -----------------------------------------
-# Content
+# Session State Init
+# -----------------------------------------
+for key in ("done", "level", "conf", "text", "simplified_results"):
+    if key not in st.session_state:
+        st.session_state[key] = False if key == "done" else (
+            {} if key == "simplified_results" else None
+        )
+
+# -----------------------------------------
+# Input & Classify
 # -----------------------------------------
 text = st.text_area("أدخل النص المراد تصنيفه:", height=220, placeholder="اكتب أو الصق النص هنا...")
-
-if 'done' not in st.session_state:
-    st.session_state.done = False
 
 col_b1, col_b2, col_b3 = st.columns([1, 1, 1])
 with col_b2:
     if st.button("بَيِّنْ", type="primary"):
         if text.strip():
-            # Apply the new validation
             is_valid, error_msg = is_valid_arabic(text)
-            
             if not is_valid:
                 st.error(error_msg)
                 st.session_state.done = False
             else:
-                with st.spinner('يتم الآن فحص لغة النص...'):
+                with st.spinner("يتم الآن فحص لغة النص..."):
                     cleaned = normalize_ar(text)
                     level, conf = classify(cleaned)
                     st.session_state.done = True
                     st.session_state.level = level
-                    st.session_state.conf = conf
-                    st.session_state.text = text
+                    st.session_state.conf  = conf
+                    st.session_state.text  = text
+                    st.session_state.simplified_results = {}  # reset on new classify
         else:
             st.error("الرجاء تزويدنا بنص للبدء")
 
+# -----------------------------------------
+# Results
+# -----------------------------------------
 if st.session_state.done:
     st.markdown("<div class='gold-divider'></div>", unsafe_allow_html=True)
 
@@ -354,26 +400,59 @@ if st.session_state.done:
         unsafe_allow_html=True
     )
 
+    # Show simplification buttons only for difficult texts (level >= 4)
     if st.session_state.level >= 4:
         st.markdown("<br>", unsafe_allow_html=True)
-        col_s1, col_s2, col_s3 = st.columns([1, 1, 1])
-        with col_s2:
-            if st.button("بَسِّطْ"):
-                if simplifier_model:
-                    with st.spinner('جاري إعادة صياغة النص بأسلوب أبسط...'):
-                        cleaned = normalize_ar(st.session_state.text)
-                        inputs = simplifier_tokenizer(cleaned, return_tensors="pt")
-                        outputs = simplifier_model.generate(**inputs, max_length=512)
-                        simplified = simplifier_tokenizer.decode(outputs[0], skip_special_tokens=True)
+        st.markdown(
+            "<div class='simplify-label'>اختر درجة التبسيط المطلوبة:</div>",
+            unsafe_allow_html=True
+        )
 
-                        st.markdown(f"""
-                        <div class='simplified-box'>
-                            <span class='box-label'>✦ النتيجة المبسطة:</span>
-                            <div class='box-text'>{simplified}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+        # Three buttons side-by-side
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            if st.button("تبسيط خفيف ✦", key="btn_mild"):
+                if simplifier_model:
+                    with st.spinner("جاري التبسيط الخفيف..."):
+                        st.session_state.simplified_results["mild"] = simplify(
+                            st.session_state.text, "mild"
+                        )
                 else:
                     st.error("خدمة التبسيط غير متاحة حالياً")
+
+        with col2:
+            if st.button("تبسيط متوسط ✦✦", key="btn_medium"):
+                if simplifier_model:
+                    with st.spinner("جاري التبسيط المتوسط..."):
+                        st.session_state.simplified_results["medium"] = simplify(
+                            st.session_state.text, "medium"
+                        )
+                else:
+                    st.error("خدمة التبسيط غير متاحة حالياً")
+
+        with col3:
+            if st.button("تبسيط قوي ✦✦✦", key="btn_strong"):
+                if simplifier_model:
+                    with st.spinner("جاري التبسيط القوي..."):
+                        st.session_state.simplified_results["strong"] = simplify(
+                            st.session_state.text, "strong"
+                        )
+                else:
+                    st.error("خدمة التبسيط غير متاحة حالياً")
+
+        # Render all results that have been generated so far
+        for level_key in ("mild", "medium", "strong"):
+            result = st.session_state.simplified_results.get(level_key)
+            if result:
+                icon  = LEVEL_ICONS[level_key]
+                label = LEVEL_LABELS[level_key]
+                st.markdown(f"""
+                <div class='simplified-box'>
+                    <span class='box-label'>{icon} النتيجة — {label}:</span>
+                    <div class='box-text'>{result}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 st.markdown("""
 <div style="text-align: center; color: #C5A059; margin-top: 60px; font-size: 0.85rem; opacity: 0.6; font-family: 'Cairo';">
