@@ -82,13 +82,29 @@ def classify(text):
     return prediction, confidence
 
 # -----------------------------------------
-# Simplification helper
+# Simplification helper — uses level prefix tokens
+# [L3] = mild  |  [L2] = medium  |  [L1] = strong
 # -----------------------------------------
-LEVEL_TOKEN = {"mild": "[L3]", "medium": "[L2]", "strong": "[L1]"}
-LEVEL_LABELS = {"mild": "تبسيط خفيف", "medium": "تبسيط متوسط", "strong": "تبسيط قوي"}
-LEVEL_ICONS = {"mild": "✦", "medium": "✦✦", "strong": "✦✦✦"}
+LEVEL_TOKEN = {
+    "mild":   "[L3]",
+    "medium": "[L2]",
+    "strong": "[L1]",
+}
+
+LEVEL_LABELS = {
+    "mild":   "تبسيط خفيف",
+    "medium": "تبسيط متوسط",
+    "strong": "تبسيط قوي",
+}
+
+LEVEL_ICONS = {
+    "mild":   "✦",
+    "medium": "✦✦",
+    "strong": "✦✦✦",
+}
 
 def simplify(text, level_key):
+    """Run AraBART with the appropriate level-control prefix token."""
     prefix  = LEVEL_TOKEN[level_key]
     cleaned = normalize_ar(text)
     source  = f"{prefix} {cleaned}"
@@ -113,6 +129,7 @@ st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@300;400;700&display=swap');
 
+/* Background Overlay */
 .stApp {{
     background-image: url("data:image/jpeg;base64,{bg_b64}");
     background-size: cover;
@@ -135,6 +152,7 @@ st.markdown(f"""
     padding-top: 2rem;
 }}
 
+/* Typography */
 h1, h2, h3, p, span, label {{
     font-family: 'Cairo', sans-serif !important;
     text-align: right !important;
@@ -142,25 +160,35 @@ h1, h2, h3, p, span, label {{
     color: #F5EEDC !important;
 }}
 
+/* Logo Animation */
 .logo-wrapper {{
     display: flex;
     justify-content: center;
     margin-top: 5rem !important;
     margin-bottom: 1rem;
+    animation: fadeInDown 1.5s ease-out;
 }}
 .logo-wrapper img {{
     height: 180px;
     filter: drop-shadow(0 0 15px rgba(197, 160, 89, 0.4));
 }}
 
+@keyframes fadeInDown {{
+    from {{ opacity: 0; transform: translateY(-20px); }}
+    to {{ opacity: 1; transform: translateY(0); }}
+}}
+
+/* Subtitle */
 .app-subtitle {{
     text-align: center !important;
     font-family: 'Amiri', serif !important;
     font-size: 1.4rem;
     color: #FFFFFF !important;
     margin-bottom: 2rem;
+    letter-spacing: 1px;
 }}
 
+/* Elegant Divider */
 .gold-divider {{
     height: 1px;
     background: linear-gradient(90deg, transparent, #C5A059, transparent);
@@ -169,88 +197,178 @@ h1, h2, h3, p, span, label {{
     opacity: 0.6;
 }}
 
+/* Input Box */
 textarea {{
     direction: rtl !important;
     text-align: right !important;
     background: rgba(15, 30, 45, 0.80) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #F5EEDC !important;
     border: 1px solid rgba(197, 160, 89, 0.4) !important;
     border-radius: 15px !important;
-    color: #F5EEDC !important;
+    padding: 15px !important;
+    font-size: 1.1rem !important;
+    caret-color: #F5EEDC !important;
 }}
 
-/* --- BUTTON CENTERING LOGIC --- */
+textarea::placeholder {{
+    color: rgba(245, 238, 220, 0.45) !important;
+}}
+
+div[data-testid="stTextArea"] textarea,
+div[data-baseweb="textarea"] textarea,
+.stTextArea textarea {{
+    color: #F5EEDC !important;
+    background: rgba(15, 30, 45, 0.80) !important;
+}}
+
+/* ── BUTTON CENTERING ── */
 .stButton {{
     display: flex;
     justify-content: center;
 }}
 
 .stButton > button {{
+    width: 200px !important;
     border-radius: 12px !important;
-    transition: all 0.3s ease !important;
+    height: 3.5rem;
+    font-size: 1.2rem !important;
     font-family: 'Cairo', sans-serif !important;
-    width: 100% !important;
-    max-width: 200px;
+    font-weight: 700 !important;
+    transition: all 0.3s ease !important;
+    border: none !important;
 }}
 
-/* Force Horizontal Layout for buttons on Mobile */
-[data-testid="stHorizontalBlock"] {{
+/* Primary button — بَيِّنْ */
+.stButton > button[kind="primary"] {{
+    background: linear-gradient(135deg, #C5A059 0%, #8E733E 100%) !important;
+    color: #0E1E2B !important;
+    box-shadow: 0 4px 18px rgba(197, 160, 89, 0.35) !important;
+}}
+
+.stButton > button[kind="primary"]:hover {{
+    transform: translateY(-3px);
+    box-shadow: 0 8px 28px rgba(197, 160, 89, 0.45) !important;
+}}
+
+/* Secondary buttons — simplification levels */
+.stButton > button[kind="secondary"],
+.stButton > button:not([kind="primary"]) {{
+    background: rgba(12, 24, 36, 0.88) !important;
+    color: #F5EEDC !important;
+    border: 1.5px solid rgba(197, 160, 89, 0.65) !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35) !important;
+    width: 180px !important;
+    font-size: 1rem !important;
+}}
+
+.stButton > button[kind="secondary"]:hover,
+.stButton > button:not([kind="primary"]):hover {{
+    background: rgba(197, 160, 89, 0.18) !important;
+    color: #C5A059 !important;
+    border-color: #C5A059 !important;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(197, 160, 89, 0.25) !important;
+}}
+
+/* ── SIMPLIFY BUTTONS ROW — centered on all screen sizes ── */
+/* Target the vertical stack Streamlit creates for consecutive buttons
+   and re-layout it as a centred flex row */
+div[data-testid="stVerticalBlock"]:has(
+    button[key="btn_mild"],
+    button[key="btn_medium"],
+    button[key="btn_strong"]
+) {{
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: wrap !important;
     justify-content: center !important;
     align-items: center !important;
-    gap: 10px !important;
+    gap: 12px !important;
 }}
 
-[data-testid="stHorizontalBlock"] > div {{
-    flex: 0 1 auto !important;
-    min-width: 110px !important; /* Prevents them from getting too small */
+/* Fallback: give every secondary .stButton the same flex treatment
+   so the row always centres regardless of Streamlit DOM nesting */
+.simplify-btn-row {{
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 12px !important;
+    width: 100% !important;
+    margin: 0.5rem 0 1rem 0 !important;
 }}
 
-.stButton > button[kind="primary"] {{
-    background: linear-gradient(135deg, #C5A059 0%, #8E733E 100%) !important;
-    color: #0E1E2B !important;
-    font-weight: 700;
-    height: 3.5rem;
+.simplify-btn-row .stButton,
+.simplify-btn-row div[data-testid="stButton"] {{
+    flex: 0 0 auto !important;
+    width: auto !important;
+    display: flex !important;
+    justify-content: center !important;
 }}
 
-.stButton > button[kind="secondary"], 
-.stButton > button:not([kind="primary"]) {{
-    background: rgba(12, 24, 36, 0.88) !important;
-    color: #F5EEDC !important;
-    border: 1.5px solid rgba(197, 160, 89, 0.65) !important;
-    font-size: 0.9rem !important;
-}}
-
+/* Result stat pills */
 .stat-pill {{
-    display: block;
-    padding: 12px;
+    display: inline-block;
+    padding: 8px 18px;
     border-radius: 10px;
     background: rgba(8, 18, 30, 0.82);
     border: 1px solid rgba(197, 160, 89, 0.35);
-    text-align: center;
-    margin: 10px auto;
-    width: fit-content;
-    min-width: 200px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 1.1rem;
+    color: #F5EEDC;
 }}
 
+.stat-pill .gold {{
+    color: #C5A059;
+    font-weight: 700;
+    font-size: 1.35rem;
+}}
+
+/* Level buttons label */
+.simplify-label {{
+    text-align: center;
+    font-family: 'Cairo', sans-serif;
+    font-size: 1rem;
+    color: rgba(197, 160, 89, 0.85);
+    margin-bottom: 0.5rem;
+    direction: rtl;
+}}
+
+/* Simplified result box */
 .simplified-box {{
     background: rgba(8, 18, 28, 0.88);
-    padding: 20px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    padding: 28px 30px;
     border-radius: 15px;
+    color: #F5EEDC !important;
     border-right: 5px solid #C5A059;
+    border-left: 1px solid rgba(197, 160, 89, 0.2);
+    border-top: 1px solid rgba(197, 160, 89, 0.15);
+    border-bottom: 1px solid rgba(197, 160, 89, 0.1);
     margin-top: 15px;
+    line-height: 2;
+    font-size: 1.15rem;
     direction: rtl;
     text-align: right;
+    font-family: 'Cairo', sans-serif;
 }}
 
-@media (max-width: 480px) {{
-    .stButton > button {{
-        font-size: 0.8rem !important;
-        height: 3rem !important;
-        padding: 0 4px !important;
-    }}
-    .app-subtitle {{ font-size: 1.1rem; }}
+.simplified-box .box-label {{
+    color: #C5A059 !important;
+    font-weight: 700;
+    font-size: 1.05rem;
+    display: block;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+}}
+
+.simplified-box .box-text {{
+    color: #F0E8D5 !important;
+    line-height: 2;
 }}
 </style>
 
@@ -262,7 +380,27 @@ textarea {{
 """, unsafe_allow_html=True)
 
 # -----------------------------------------
-# Main Logic
+# Validation Helper
+# -----------------------------------------
+def is_valid_arabic(text):
+    check_text = re.sub(r"[\s\d\W_]+", "", text)
+    if not check_text:
+        return False, "الرجاء إدخال نص (ليس أرقاماً فقط)"
+    if not re.search(r"[\u0600-\u06FF]", text):
+        return False, "الرجاء إدخال نص باللغة العربية فقط"
+    return True, ""
+
+# -----------------------------------------
+# Session State Init
+# -----------------------------------------
+for key in ("done", "level", "conf", "text", "simplified_results"):
+    if key not in st.session_state:
+        st.session_state[key] = False if key == "done" else (
+            {} if key == "simplified_results" else None
+        )
+
+# -----------------------------------------
+# Input & Classify
 # -----------------------------------------
 text = st.text_area("أدخل النص المراد تصنيفه:", height=220, placeholder="اكتب أو الصق النص هنا...")
 
@@ -270,44 +408,116 @@ col_b1, col_b2, col_b3 = st.columns([1, 1, 1])
 with col_b2:
     if st.button("بَيِّنْ", type="primary"):
         if text.strip():
-            # Basic validation
-            if not re.search(r"[\u0600-\u06FF]", text):
-                st.error("الرجاء إدخال نص باللغة العربية")
+            is_valid, error_msg = is_valid_arabic(text)
+            if not is_valid:
+                st.error(error_msg)
+                st.session_state.done = False
             else:
-                with st.spinner("جاري التصنيف..."):
+                with st.spinner("يتم الآن فحص لغة النص..."):
                     cleaned = normalize_ar(text)
                     level, conf = classify(cleaned)
                     st.session_state.done = True
                     st.session_state.level = level
-                    st.session_state.text = text
-                    st.session_state.simplified_results = {}
+                    st.session_state.conf  = conf
+                    st.session_state.text  = text
+                    st.session_state.simplified_results = {}  # reset on new classify
         else:
-            st.error("الرجاء إدخال نص")
+            st.error("الرجاء تزويدنا بنص للبدء")
 
-if st.session_state.get("done"):
-    st.markdown(f"<div class='stat-pill'>مستوى الصعوبة: <b style='color:#C5A059; font-size:1.4rem;'>{st.session_state.level}</b></div>", unsafe_allow_html=True)
+# -----------------------------------------
+# Results
+# -----------------------------------------
+if st.session_state.done:
+    st.markdown("<div class='gold-divider'></div>", unsafe_allow_html=True)
 
+    st.markdown(
+        f"<div class='stat-pill' style='text-align:center; width:100%;'>"
+        f"مستوى الصعوبة: <span class='gold'>{st.session_state.level}</span>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+
+    # Show simplification buttons only for difficult texts (level >= 4)
     if st.session_state.level >= 4:
-        st.markdown("<p style='text-align:center !important;'>اختر درجة التبسيط المطلوبة:</p>", unsafe_allow_html=True)
-        
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            if st.button("تبسيط خفيف ✦", key="btn_mild"):
-                st.session_state.simplified_results["mild"] = simplify(st.session_state.text, "mild")
-        with c2:
-            if st.button("تبسيط متوسط ✦✦", key="btn_medium"):
-                st.session_state.simplified_results["medium"] = simplify(st.session_state.text, "medium")
-        with c3:
-            if st.button("تبسيط قوي ✦✦✦", key="btn_strong"):
-                st.session_state.simplified_results["strong"] = simplify(st.session_state.text, "strong")
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='simplify-label'>اختر درجة التبسيط المطلوبة:</div>",
+            unsafe_allow_html=True
+        )
 
-        for k in ("mild", "medium", "strong"):
-            res = st.session_state.simplified_results.get(k)
-            if res:
+        # Columns for side-by-side layout; CSS below centres each button within its column
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col1:
+            btn_mild   = st.button("تبسيط خفيف ✦",   key="btn_mild")
+        with col2:
+            btn_medium = st.button("تبسيط متوسط ✦✦", key="btn_medium")
+        with col3:
+            btn_strong = st.button("تبسيط قوي ✦✦✦",  key="btn_strong")
+
+        # Injected after render so the selector hits the live DOM
+        st.markdown("""
+        <style>
+        [data-testid="stHorizontalBlock"] [data-testid="stColumn"] .stButton {
+            display: flex !important;
+            justify-content: center !important;
+            width: 100% !important;
+        }
+        [data-testid="stHorizontalBlock"] [data-testid="stColumn"] .stButton > button {
+            width: 90% !important;
+            max-width: 180px !important;
+        }
+        @media (max-width: 480px) {
+            [data-testid="stHorizontalBlock"] [data-testid="stColumn"] .stButton > button {
+                width: 100% !important;
+                max-width: 220px !important;
+                font-size: 0.9rem !important;
+            }
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        if btn_mild:
+            if simplifier_model:
+                with st.spinner("جاري التبسيط الخفيف..."):
+                    st.session_state.simplified_results["mild"] = simplify(
+                        st.session_state.text, "mild"
+                    )
+            else:
+                st.error("خدمة التبسيط غير متاحة حالياً")
+
+        if btn_medium:
+            if simplifier_model:
+                with st.spinner("جاري التبسيط المتوسط..."):
+                    st.session_state.simplified_results["medium"] = simplify(
+                        st.session_state.text, "medium"
+                    )
+            else:
+                st.error("خدمة التبسيط غير متاحة حالياً")
+
+        if btn_strong:
+            if simplifier_model:
+                with st.spinner("جاري التبسيط القوي..."):
+                    st.session_state.simplified_results["strong"] = simplify(
+                        st.session_state.text, "strong"
+                    )
+            else:
+                st.error("خدمة التبسيط غير متاحة حالياً")
+
+        # Render all results that have been generated so far
+        for level_key in ("mild", "medium", "strong"):
+            result = st.session_state.simplified_results.get(level_key)
+            if result:
+                icon  = LEVEL_ICONS[level_key]
+                label = LEVEL_LABELS[level_key]
                 st.markdown(f"""
                 <div class='simplified-box'>
-                    <b style='color:#C5A059;'>{LEVEL_ICONS[k]} النتيجة ({LEVEL_LABELS[k]}):</b><br>{res}
+                    <span class='box-label'>{icon} النتيجة — {label}:</span>
+                    <div class='box-text'>{result}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
-st.markdown('<div style="text-align: center; color: #C5A059; margin-top: 50px; font-size: 0.8rem; opacity: 0.6;">© 2026 — مشروع بَيِّنْ وَ بَسِيطْ</div>', unsafe_allow_html=True)
+st.markdown("""
+<div style="text-align: center; color: #C5A059; margin-top: 60px; font-size: 0.85rem; opacity: 0.6; font-family: 'Cairo';">
+    © 2026 — مشروع بَيِّنْ وَ بَسِّطْ
+</div>
+""", unsafe_allow_html=True)
