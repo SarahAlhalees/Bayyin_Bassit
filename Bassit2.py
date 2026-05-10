@@ -365,6 +365,13 @@ for key in ("done", "level", "conf", "text", "simplified_results"):
 # -----------------------------------------
 # Input & Classify
 # -----------------------------------------
+st.markdown("""
+<div style="text-align: center; font-family: 'Cairo', sans-serif; font-size: 0.95rem;
+     color: rgba(197, 160, 89, 0.75); margin-bottom: 0.8rem; direction: rtl;">
+    ℹ️ سيتم تبسيط النصوص الصعبة فقط (المصنفة من 4–6)
+</div>
+""", unsafe_allow_html=True)
+
 text = st.text_area("أدخل النص المراد تصنيفه:", height=220, placeholder="اكتب أو الصق النص هنا...")
 
 col_b1, col_b2, col_b3 = st.columns([1, 1, 1])
