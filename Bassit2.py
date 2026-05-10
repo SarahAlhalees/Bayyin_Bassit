@@ -368,7 +368,7 @@ for key in ("done", "level", "conf", "text", "simplified_results"):
 st.markdown("""
 <div style="text-align: center; font-family: 'Cairo', sans-serif; font-size: 0.95rem;
      color: rgba(197, 160, 89, 0.75); margin-bottom: 0.8rem; direction: rtl;">
-    ℹ️ سيتم تبسيط النصوص الصعبة فقط (المصنفة من 4–6)
+    * سيتم تبسيط النصوص الصعبة فقط (المصنفة من 4–6)
 </div>
 """, unsafe_allow_html=True)
 
